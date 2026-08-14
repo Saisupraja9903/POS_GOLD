@@ -1,0 +1,33 @@
+/* Light Returns theme aligned with the ERP workspace. */
+.returns-layout { color:#20231f; }
+.returns-register,.raise-return { background:#fff; border-color:#e7e4dc; }
+.register-summary { border-bottom-color:#e7e4dc; }
+.register-summary small { color:#72766f; }
+.register-summary strong { color:#20231f; }
+.register-tools>label { background:#f6f5f1; border-color:#ddd8cc; }
+.register-tools input { color:#20231f; }
+.filter { background:#fff; border-color:#ddd8cc; color:#62665f; }
+.filter.active { border-color:#c1a552; color:#79651d; }
+.filter-popover { background:#fff; border-color:#ddd8cc; box-shadow:0 12px 30px #17261e1c; color:#20231f; }
+.filter-popover select,.assessment-grid select,.preview-total select { background:#fff; color:#20231f; border-color:#ddd8cc; }
+.filter-popover footer button { border-color:#ddd8cc; color:#62665f; }
+.active-filters span { background:#f0eee6; color:#79651d; }
+.returns-table { border-color:#e7e4dc; }
+.returns-table header { background:#f6f5f1; color:#8b8b84; }
+.returns-table>button { background:#fff; color:#20231f; border-top-color:#efede7; }
+.returns-table>button:hover,.returns-table>button:focus { background:#fbfaf6; outline-color:#d1b866; }
+.returns-table mark { background:#e3f2e9; color:#327048; }
+.pagination button { background:#fff; border-color:#ddd8cc; color:#62665f; }
+.raise-return>p,.workflow ol { color:#72766f; }
+.raise-return input { background:#fff; color:#20231f; border-color:#ddd8cc; }
+.workflow { border-top-color:#e7e4dc; }
+.return-modal { background:#16251e99; }
+.return-modal>div { background:#fff; color:#20231f; border-color:#ddd8cc; }
+.gold-facts span { background:#f6f5f1; color:#72766f; }
+.gold-facts b { color:#20231f; }
+.preview-total { border-top-color:#e7e4dc; }
+.return-drawer-backdrop { background:#16251e66; }
+.return-drawer { background:#fff!important; color:#20231f!important; border-left-color:#e7e4dc!important; }
+.return-drawer section { border-color:#e7e4dc!important; }
+.drawer-weights span { background:#f6f5f1!important; color:#72766f!important; }
+.drawer-weights b { color:#20231f!important; }

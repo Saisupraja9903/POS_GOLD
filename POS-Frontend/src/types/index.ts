@@ -1,0 +1,31 @@
+export interface JewelleryItem {
+  id: string;
+  tag_number: string;
+  barcode: string;
+  sku?: string;
+  gross_weight: string;
+  stone_weight: string;
+  net_weight: string;
+  fine_weight: string;
+  status: string;
+  available_count: number;
+  availability_status: 'AVAILABLE' | 'OUT_OF_STOCK';
+  ownership: string;
+}
+
+export interface PosUser {
+  full_name: string;
+  email: string;
+  business_name: string;
+  branch_name: string;
+  role: { name: string };
+}
+
+export interface PriceQuote {
+  breakdown: {
+    metal_value: string;
+    making_charge: string;
+    tax_amount: string;
+    total: string;
+  };
+}

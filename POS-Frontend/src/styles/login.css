@@ -1,0 +1,4 @@
+/* Login-page-specific layout. */
+.login form { max-width: calc(100vw - 32px); }
+.login input:focus { outline: 2px solid #c1a552; outline-offset: 1px; }
+.login button:disabled { cursor: wait; opacity: .65; }

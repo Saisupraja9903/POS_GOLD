@@ -1,0 +1,25 @@
+/* Recent-return filters and audit-detail drawer. */
+.recent-heading { display:flex; align-items:end; justify-content:space-between; margin:28px 0 10px; }
+.recent-heading h3,.recent-heading p { margin:3px 0; }
+.recent-heading p { font-size:10px; color:#82847f; }
+.return-filters { display:flex; align-items:center; gap:8px; }
+.return-filters svg { width:16px; color:#9b7d28; }
+.return-filters select { padding:8px; border:1px solid #ddd8cc; background:#fff; border-radius:5px; }
+.recent-heading + div { padding:0!important; overflow:hidden; }
+.recent-returns article { cursor:pointer; }
+.recent-returns article:hover,.recent-returns article:focus { background:#fbfaf6; outline:1px solid #d1b866; outline-offset:-1px; }
+.return-drawer-backdrop { position:fixed; inset:0; background:#16251e66; z-index:40; }
+.return-drawer { position:absolute; right:0; top:0; bottom:0; width:min(480px,100vw); overflow:auto; background:#fff; padding:28px; box-shadow:-12px 0 40px #0002; }
+.drawer-close { float:right; border:0; background:#f0eee6; width:36px; height:36px; border-radius:50%; }
+.return-drawer>small { color:#9b7d28; letter-spacing:1px; }
+.return-drawer>h2 { font:700 30px 'Cormorant Garamond',serif; margin:8px 0; }
+.return-drawer>mark { display:inline-block; background:#e3f2e9; color:#327048; border-radius:12px; padding:5px 9px; font-size:9px; }
+.return-drawer section { border-top:1px solid #e7e4dc; margin-top:22px; padding-top:14px; }
+.return-drawer dl { display:grid; grid-template-columns:1fr minmax(0,1.4fr); font-size:11px; gap:9px; }
+.return-drawer dt { color:#82847f; }
+.return-drawer dd { text-align:right; overflow-wrap:anywhere; }
+.drawer-weights { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.drawer-weights span { background:#f6f5f1; padding:11px; color:#82847f; font-size:9px; }
+.drawer-weights b { display:block; color:#20231f; margin-top:5px; }
+.return-drawer footer { color:#82847f; font-size:9px; border-top:1px solid #e7e4dc; margin-top:22px; padding-top:14px; }
+@media(max-width:700px){.recent-heading{display:block}.return-filters{margin-top:10px;flex-wrap:wrap}.return-filters select{flex:1}}

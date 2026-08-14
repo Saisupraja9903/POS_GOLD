@@ -1,10 +1,13 @@
-﻿import React,{useEffect,useState} from 'react';
-import{createRoot}from'react-dom/client';
-import{ScanLine,UserPlus,Trash2,CreditCard,Search,Gem}from'lucide-react';
-import{api,login,logout,message,session}from'./auth';
-import'./style.css';
-type Item={id:string;tag_number:string;barcode:string;net_weight:string};
-function Login(){const[email,setEmail]=useState(''),[password,setPassword]=useState(''),[error,setError]=useState(''),[busy,setBusy]=useState(false);return <main className="login"><form onSubmit={async e=>{e.preventDefault();setBusy(true);setError('');try{await login(email,password);location.reload()}catch(e){setError(message(e))}finally{setBusy(false)}}}><Gem/><h1>Aurum POS</h1><p>Retail Counter</p><input aria-label="Email" type="email" autoComplete="username" required value={email} onChange={e=>setEmail(e.target.value)} placeholder="Email"/><input aria-label="Password" type="password" autoComplete="current-password" required value={password} onChange={e=>setPassword(e.target.value)} placeholder="Password"/>{error&&<div className="error" role="alert">{error}</div>}<button disabled={busy}>{busy?'Openingâ€¦':'Open register'}</button></form></main>}
-function App(){const[me,setMe]=useState<any>(null),[checking,setChecking]=useState(Boolean(session.access())),[query,setQuery]=useState(''),[cart,setCart]=useState<Item[]>([]),[found,setFound]=useState<Item[]>([]);useEffect(()=>{if(session.access())api.get('/auth/me').then(r=>setMe(r.data)).catch(()=>session.clear()).finally(()=>setChecking(false));else setChecking(false)},[]);if(checking)return <main className="login"><Gem/></main>;if(!session.access()||!me)return <Login/>;async function search(){const r=await api.get('/jewellery',{params:{barcode:query}});setFound(r.data)}return <div><header><b><Gem/> AURUM <i>POS</i></b><span>{me.business_name} Â· {me.branch_name}</span><span>{me.full_name} Â· {me.role.name}</span><button onClick={async()=>{await logout();location.reload()}}>Close shift</button></header><main className="layout"><section className="catalog"><div className="search"><ScanLine/><input autoFocus placeholder="Scan barcode / enter HUID or tag" value={query} onChange={e=>setQuery(e.target.value)} onKeyDown={e=>e.key==='Enter'&&search()}/><button onClick={search}><Search/></button></div><div className="rate"><span>22K GOLD SELLING</span><strong>Rate calculated at checkout</strong><small>Server authoritative</small></div><h3>ITEM LOOKUP</h3><div className="results">{found.map(i=><article key={i.id} onClick={()=>!cart.some(x=>x.id===i.id)&&setCart([...cart,i])}><div><b>{i.tag_number}</b><p>{i.barcode} Â· {i.net_weight} g</p></div><button>Add</button></article>)}{!found.length&&<div className="hint"><ScanLine/><p>Scan an item to begin</p><small>Only available stock in this branch can be billed</small></div>}</div></section><aside><div className="customer"><UserPlus/><div><small>CUSTOMER</small><b>Walk-in customer</b></div><button>Change</button></div><h2>Current sale <span>{cart.length} items</span></h2><div className="cart">{cart.map(i=><article key={i.id}><div><b>{i.tag_number}</b><small>{i.net_weight} g net weight</small></div><strong>Rate on checkout</strong><button onClick={()=>setCart(cart.filter(x=>x.id!==i.id))}><Trash2/></button></article>)}{!cart.length&&<p className="empty">Your cart is empty</p>}</div><div className="totals"><p><span>Items</span><b>{cart.length}</b></p><p><span>Pricing</span><b>Server calculated</b></p><hr/><p className="grand"><span>Payable</span><b>â€”</b></p><button disabled={!cart.length}><CreditCard/> Continue to payment</button><small>Backend validates rate, discount, tax and inventory atomically.</small></div></aside></main></div>}
-createRoot(document.getElementById('root')!).render(<App/>);
+import React from 'react';
+import { createRoot } from 'react-dom/client';
+import { BrowserRouter } from 'react-router-dom';
+import { App } from './app/App';
+import './style.css';
 
+createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <BrowserRouter basename="/pos">
+      <App />
+    </BrowserRouter>
+  </React.StrictMode>,
+);

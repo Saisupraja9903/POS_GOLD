@@ -1,0 +1,9 @@
+/* Billing search, cart, payment and sale-complete states. */
+.scan input::placeholder { color: #92948e; }
+.product-list article:last-child { border-bottom: 0; }
+.product-list mark.available { color:#327048; background:#e3f2e9; border:1px solid #bcdcc7; }
+.product-list mark.out-of-stock { color:#b42318; background:#fff0ee; border:1px solid #f3b7b1; }
+.product-list mark { width:max-content; border-radius:999px; font-weight:700; }
+.product-list article>button:disabled { cursor:not-allowed; opacity:.4; }
+.cart article button svg { width: 15px; height: 15px; }
+.modal select:focus { outline: 2px solid #c1a552; }
