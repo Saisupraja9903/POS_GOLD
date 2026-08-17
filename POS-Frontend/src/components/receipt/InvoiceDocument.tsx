@@ -4,6 +4,10 @@ import { formatMoney } from '../../utils/format';
 export const isInvoicePrintable = (invoice: any) => Boolean(invoice?.id && invoice?.invoice_number && invoice?.total != null && Array.isArray(invoice?.items) && invoice.items.length);
 
 export function InvoiceDocument({ invoice, business }: { invoice: any; business: any }) {
+  return <PhysicalInvoiceDocument invoice={{ ...invoice, items: groupInvoiceItems(invoice.items || []) }} business={business} />;
+}
+
+function PhysicalInvoiceDocument({ invoice, business }: { invoice: any; business: any }) {
   const date = new Date(invoice.invoice_date);
   const price = totalPriceBreakdown(invoice.items?.map((item: any) => item.price) || [invoice.snapshot?.price || {}]);
   return <article className="invoice-print-document" data-invoice-id={invoice.id}>
@@ -14,6 +18,21 @@ export function InvoiceDocument({ invoice, business }: { invoice: any; business:
     <div className="invoice-bottom"><section className="invoice-payments"><h2>Payment</h2>{invoice.payments.map((payment: any, index: number) => <p key={`${payment.method}-${index}`}><span>{payment.method}{payment.reference ? ` · ${payment.reference}` : ''}</span><b>{formatMoney(payment.amount)}</b></p>)}<p className="paid"><span>Total paid</span><b>{formatMoney(invoice.amount_paid)}</b></p><p><span>Balance</span><b>{formatMoney(invoice.balance)}</b></p></section><section className="invoice-totals"><h2>Invoice summary</h2>{price.metal_value != null && <p><span>Metal value</span><b>{formatMoney(price.metal_value)}</b></p>}{price.making_charge != null && <p><span>Making charges</span><b>{formatMoney(price.making_charge)}</b></p>}{price.wastage_value != null && <p><span>Wastage</span><b>{formatMoney(price.wastage_value)}</b></p>}{price.other_charges != null && Number(price.other_charges) > 0 && <p><span>Other charges</span><b>{formatMoney(price.other_charges)}</b></p>}{price.discount != null && Number(price.discount) > 0 && <p><span>Discount</span><b>− {formatMoney(price.discount)}</b></p>}{price.subtotal != null && <p><span>Subtotal</span><b>{formatMoney(price.subtotal)}</b></p>}{price.tax_amount != null && <p><span>GST</span><b>{formatMoney(price.tax_amount)}</b></p>}<p className="invoice-grand"><span>Total</span><b>{formatMoney(invoice.total)}</b></p></section></div>
     <footer><div><p>Thank you for choosing {business?.business_name || invoice.branch}.</p><small>We appreciate your business.</small></div><div><b>Authorised invoice</b><small>Computer-generated document · {invoice.invoice_number}</small></div></footer>
   </article>;
+}
+
+function groupInvoiceItems(items: any[]) {
+  return Object.values(items.reduce((groups, item) => {
+    const key = item.product_id || `${item.name}:${item.rate?.purity_id || ''}`;
+    if (!groups[key]) groups[key] = { ...item, id: key, quantity: 1, physical_ids: [item.id] };
+    else {
+      const group = groups[key]; group.quantity += 1; group.physical_ids.push(item.id);
+      group.tag_number = `${group.tag_number}, ${item.tag_number}`; group.barcode = `${group.barcode}, ${item.barcode}`;
+      if (item.huid) group.huid = group.huid ? `${group.huid}, ${item.huid}` : item.huid;
+      for (const field of ['gross_weight', 'stone_weight', 'net_weight', 'fine_weight', 'line_total']) group[field] = String(Number(group[field] || 0) + Number(item[field] || 0));
+      for (const field of ['metal_value', 'making_charge', 'wastage_value', 'other_charges', 'discount', 'subtotal', 'tax_amount', 'total']) group.price[field] = String(Number(group.price?.[field] || 0) + Number(item.price?.[field] || 0));
+    }
+    return groups;
+  }, {} as Record<string, any>));
 }
 
 function totalPriceBreakdown(prices: any[]) {

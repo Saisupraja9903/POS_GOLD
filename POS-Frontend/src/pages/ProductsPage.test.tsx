@@ -19,8 +19,17 @@ describe('ProductsPage add to bill', () => {
     render(<ProductsPage />);
     const button = await screen.findByRole('button', { name: /add to bill/i });
     fireEvent.click(button);
+    fireEvent.click(await screen.findByRole('button', { name: /add 1 to bill/i }));
     await waitFor(() => expect(api.post).toHaveBeenCalledTimes(1));
-    expect(api.post).toHaveBeenCalledWith('/pos/cart/items', null, { params: { item_id: 'item-a' } });
-    expect(await screen.findByRole('button', { name: /in cart/i })).toBeDisabled();
+    expect(api.post).toHaveBeenCalledWith('/pos/cart/products', { product_item_id: 'item-a', quantity: 1 });
+  });
+
+  it('shows only the final POS columns and authoritative piece count', async () => {
+    render(<ProductsPage />);
+    expect(await screen.findByText('PRODUCT')).toBeInTheDocument();
+    expect(screen.queryByText('PRODUCT ID')).not.toBeInTheDocument();
+    expect(screen.queryByText(/^TAG$/)).not.toBeInTheDocument();
+    for (const heading of ['BARCODE', 'PURITY', 'GROSS', 'NET', 'FINE', 'WASTAGE', 'AVAILABLE STOCK', 'ACTION']) expect(screen.getByText(heading)).toBeInTheDocument();
+    expect(screen.getByText('1 PIECES')).toBeInTheDocument();
   });
 });

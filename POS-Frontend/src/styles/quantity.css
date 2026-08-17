@@ -1,0 +1,18 @@
+.quantity-picker,.cart-quantity{display:flex;align-items:center;justify-content:center;gap:8px}
+.quantity-picker button,.cart-quantity button{display:inline-flex;align-items:center;justify-content:center;min-width:30px;height:30px;padding:6px;border:1px solid #c1a552;border-radius:5px;background:#fff;color:#79651d}
+.quantity-picker button:last-child{min-width:92px}
+.quantity-picker svg,.cart-quantity svg{width:13px;height:13px}
+.quantity-picker button:disabled,.cart-quantity button:disabled{opacity:.4}
+.cart-quantity{justify-content:flex-start;margin:10px 0}
+.cart-quantity b{min-width:24px;text-align:center;font-size:14px}
+.available-table header,.available-table article{grid-template-columns:1.5fr 1.15fr .9fr .75fr .75fr .75fr .75fr 1.1fr 1.4fr;min-width:1080px}
+.available-table mark small{margin-top:2px;color:inherit}
+.wastage-input{display:flex;align-items:center;gap:6px;margin:10px 0;color:#858981;font-size:10px}
+.wastage-input input{width:72px;padding:7px;border:1px solid #d7d3c9;border-radius:5px;background:#fff;color:#20231f;text-align:right}
+.scan-result{margin-top:12px}
+.scan-result .result-head{margin-bottom:8px}
+.scan-result .product-list{background:#fff;border:1px solid #e3e0d8;border-radius:7px}
+.scan-result .product-list article{grid-template-columns:auto 1.25fr 1.5fr 1fr auto auto}
+.result-price{display:grid;grid-template-columns:auto auto;gap:4px 12px;margin:0;font-size:9px}
+.result-price dt{color:#858981}.result-price dd{margin:0;text-align:right;font-weight:700;color:#30342e}
+.result-error button{margin-top:10px;padding:7px 16px;border:1px solid #c1a552;background:#fff;color:#79651d}

@@ -11,6 +11,12 @@ export interface JewelleryItem {
   available_count: number;
   availability_status: 'AVAILABLE' | 'OUT_OF_STOCK';
   ownership: string;
+  product_id?: string;
+  name?: string;
+  huid?: string;
+  purity?: string;
+  fineness?: string;
+  wastage_percent?: string;
 }
 
 export interface PosUser {
@@ -25,6 +31,7 @@ export interface PriceQuote {
   breakdown: {
     metal_value: string;
     making_charge: string;
+    wastage_value?: string;
     tax_amount: string;
     total: string;
   };
