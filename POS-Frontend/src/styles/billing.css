@@ -7,3 +7,9 @@
 .product-list article>button:disabled { cursor:not-allowed; opacity:.4; }
 .cart article button svg { width: 15px; height: 15px; }
 .modal select:focus { outline: 2px solid #c1a552; }
+.bill-total .estimate-button { margin: 0 0 8px; border: 1px solid #665a37; background: transparent; color: #ddc778; }
+.estimate-modal > div { width: min(520px, calc(100vw - 30px)); }
+.estimate-lines { max-height: 260px; overflow: auto; margin: 20px 0; border-top: 1px solid #34352f; }
+.estimate-lines p { display: flex; justify-content: space-between; gap: 16px; margin: 0; padding: 12px 0; border-bottom: 1px solid #34352f; color: #e7e2d8; }
+.estimate-lines p small { display: block; margin-top: 3px; color: #888b83; }
+.estimate-note { line-height: 1.55; }
