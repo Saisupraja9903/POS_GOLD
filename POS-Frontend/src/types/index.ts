@@ -16,22 +16,27 @@ export interface JewelleryItem {
   huid?: string;
   purity?: string;
   fineness?: string;
-  wastage_percent?: string;
+  wastage_percent?: string | null;
 }
 
 export interface PosUser {
   full_name: string;
   email: string;
+  employee_id?: string | null;
   business_name: string;
   branch_name: string;
-  role: { name: string };
+  role: { name: string; code: string };
+  permissions: string[];
 }
 
 export interface PriceQuote {
+  rate_per_gram?: string;
   breakdown: {
     metal_value: string;
     making_charge: string;
     wastage_value?: string;
+    discount?: string;
+    subtotal?: string;
     tax_amount: string;
     total: string;
   };

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { api, session } from '../auth';
 import { Login } from '../components/Login';
@@ -39,15 +39,21 @@ export function App() {
   return (
     <PosLayout user={user}>
       <Routes>
-        <Route path="/billing" element={<BillingPage />} />
-        <Route path="/returns" element={<ReturnsPage />} />
-        <Route path="/products" element={<ProductsPage />} />
-        <Route path="/invoices" element={<InvoicesPage />} />
-        <Route path="/invoices/:id" element={<InvoiceDetailPage />} />
-        <Route path="/reports" element={<ReportsPage />} />
-        <Route path="/settings" element={<SettingsPage user={user} />} />
+        <Route path="/billing" element={<Permitted user={user} permission="billing.view"><BillingPage user={user} /></Permitted>} />
+        <Route path="/returns" element={<Permitted user={user} permission="returns.view"><ReturnsPage /></Permitted>} />
+        <Route path="/products" element={<Permitted user={user} permission="products.view"><ProductsPage /></Permitted>} />
+        <Route path="/invoices" element={<Permitted user={user} permission="invoices.view"><InvoicesPage /></Permitted>} />
+        <Route path="/invoices/:id" element={<Permitted user={user} permission="invoices.view"><InvoiceDetailPage /></Permitted>} />
+        <Route path="/reports" element={<Permitted user={user} permission="reports.view"><ReportsPage /></Permitted>} />
+        <Route path="/settings" element={<Permitted user={user} permission="settings.view"><SettingsPage user={user} /></Permitted>} />
         <Route path="*" element={<Navigate to="/billing" replace />} />
       </Routes>
     </PosLayout>
   );
+}
+
+function Permitted({ user, permission, children }: { user: PosUser; permission: string; children: ReactNode }) {
+  return user.permissions.includes('*') || user.permissions.includes(permission)
+    ? <>{children}</>
+    : <Navigate to="/billing" replace />;
 }

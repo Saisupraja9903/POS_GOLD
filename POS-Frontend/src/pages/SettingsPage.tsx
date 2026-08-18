@@ -16,6 +16,7 @@ export function SettingsPage({ user }: { user: PosUser }) {
         <div className="avatar">{user.full_name[0]}</div>
         <h2>{user.full_name}</h2><p>{user.role.name}</p>
         <dl><dt>Business</dt><dd>{user.business_name}</dd><dt>Branch</dt><dd>{user.branch_name}</dd><dt>Email</dt><dd>{user.email}</dd><dt>Session storage</dt><dd>Encrypted token transport · refresh rotation</dd></dl>
+        <section className="my-access"><h3>My access</h3><p>Role: {user.role.name}</p><p>Branch: {user.branch_name}</p><ul>{user.permissions.includes('*') ? <li>Full access</li> : user.permissions.map(permission => <li key={permission}>{permission}</li>)}</ul></section>
         <button onClick={signOut}><LogOut /> Sign out</button>
       </div>
     </Page>

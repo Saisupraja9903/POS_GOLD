@@ -1,17 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
 import { CreditCard, Eye, Gem, Minus, Plus, ScanLine, Search, Trash2, X } from 'lucide-react';
 import { api } from '../auth';
-import type { JewelleryItem, PriceQuote } from '../types';
+import type { JewelleryItem, PosUser, PriceQuote } from '../types';
 import { formatMoney } from '../utils/format';
 import '../styles/billing.css';
 import '../styles/quantity.css';
 import { CustomerSelector, SelectedCustomerCard } from '../components/customers/CustomerSelector';
 import type { Customer } from '../types/customer';
 import { ReceiptExperience } from '../components/receipt/ReceiptExperience';
+import { EstimateBillPreview } from '../components/estimate/EstimateBillPreview';
 
-interface CartItem extends JewelleryItem { cartLineId: string; product_id: string; name?: string; huid?: string; purity?: string; wastage_percent: string }
+interface CartItem extends JewelleryItem { cartLineId: string; product_id: string; name?: string; huid?: string; purity?: string; wastage_percent: string | null }
 
-export function BillingPage() {
+export function BillingPage({ user }: { user: PosUser }) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<JewelleryItem[]>([]);
   const [cart, setCart] = useState<JewelleryItem[]>([]);
@@ -103,6 +104,7 @@ export function BillingPage() {
   }
 
   async function updateWastage(item: JewelleryItem, value: string) {
+    if (!user.permissions.includes('*') && !user.permissions.includes('billing.edit')) { setError('You do not have permission to override wastage.'); return; }
     if (!/^\d+(\.\d+)?$/.test(value) || Number(value) < 0) { setError('Enter a valid wastage percentage.'); return; }
     setBusy(true); setError('');
     try { await api.patch('/pos/cart/products/wastage', { product_item_id: item.id, wastage_percent: value }); await loadActiveCart(); }
@@ -153,9 +155,9 @@ export function BillingPage() {
         <div className="context"><span><i /> Live branch inventory</span><span>Pricing is calculated and locked by the server</span></div>
         {error && <div className="notice error">{error}</div>}
       </div>
-      <BillPanel customer={customer} openCustomer={() => setCustomerOpen(true)} removeCustomer={() => setCustomer(null)} cart={cart} quotes={quotes} total={total} busy={busy} onIncrement={incrementGroup} onWastage={updateWastage} onRemove={removeFromCart} onRemoveGroup={removeGroup} onClear={clearCart} onEstimate={() => setEstimateOpen(true)} onCheckout={() => setCheckoutOpen(true)} />
+      <BillPanel customer={customer} openCustomer={() => setCustomerOpen(true)} removeCustomer={() => setCustomer(null)} cart={cart} quotes={quotes} total={total} busy={busy} canEdit={user.permissions.includes('*') || user.permissions.includes('billing.edit')} onIncrement={incrementGroup} onWastage={updateWastage} onRemove={removeFromCart} onRemoveGroup={removeGroup} onClear={clearCart} onEstimate={() => setEstimateOpen(true)} onCheckout={() => setCheckoutOpen(true)} />
       {checkoutOpen && <PaymentModal total={total} busy={busy} method={paymentMethod} setMethod={setPaymentMethod} onClose={() => setCheckoutOpen(false)} onConfirm={completeSale} />}
-      {estimateOpen && <EstimatePreview cart={cart} quotes={quotes} total={total} customer={customer} onClose={() => setEstimateOpen(false)} />}
+      {estimateOpen && <EstimateBillPreview cart={cart} quotes={quotes} customer={customer} user={user} onClose={() => setEstimateOpen(false)} />}
       <CustomerSelector open={customerOpen} onClose={() => setCustomerOpen(false)} onSelect={(selected) => { setCustomer(selected); setCustomerOpen(false); }} />
     </section>
   );
@@ -177,19 +179,17 @@ function LegacyBillPanel({ customer, openCustomer, removeCustomer, cart, quotes,
   return <aside className="bill-panel"><SelectedCustomerCard customer={customer} onOpen={openCustomer} onRemove={removeCustomer}/><div className="cart-title"><h2>Bill items</h2><b>{cart.length}</b></div><div className="cart">{cart.map((item) => { const price = quotes[item.id]?.breakdown; return <article key={item.id}><button aria-label={`Remove ${item.tag_number}`} onClick={() => onRemove(item.id)}><Trash2 /></button><small>{item.tag_number}</small><h3>{item.sku || 'Gold jewellery'}</h3><div><span>{item.net_weight} g net</span><b>{formatMoney(price?.total)}</b></div><dl><dt>Gold value</dt><dd>{formatMoney(price?.metal_value)}</dd><dt>Making</dt><dd>{formatMoney(price?.making_charge)}</dd><dt>GST</dt><dd>{formatMoney(price?.tax_amount)}</dd></dl></article>; })}{!cart.length && <div className="cart-empty"><Gem /><p>No items in this bill</p></div>}</div><div className="bill-total"><p><span>Items</span><b>{cart.length}</b></p><p><span>Estimated total</span><b>{formatMoney(total)}</b></p><small>Estimates use live rates. The final invoice is revalidated at checkout.</small><div><small>ESTIMATED GRAND TOTAL</small><strong>{formatMoney(total)}</strong></div><button className="estimate-button" disabled={!cart.length} onClick={onEstimate}><Eye /> View estimate</button><button disabled={!cart.length} onClick={onCheckout}><CreditCard /> Proceed to payment</button><nav><button disabled>Old gold</button><button disabled>Exchange</button><button onClick={onClear}>Clear</button></nav></div></aside>;
 }
 
-function BillPanel({ customer, openCustomer, removeCustomer, cart, quotes, total, busy, onIncrement, onWastage, onRemove, onRemoveGroup, onClear, onEstimate, onCheckout }: { customer: Customer | null; openCustomer: () => void; removeCustomer: () => void; cart: JewelleryItem[]; quotes: Record<string, PriceQuote>; total: number; busy: boolean; onIncrement: (item: JewelleryItem) => void; onWastage: (item: JewelleryItem, value: string) => void; onRemove: (id: string) => void; onRemoveGroup: (productId: string) => void; onClear: () => void; onEstimate: () => void; onCheckout: () => void }) {
+function BillPanel({ customer, openCustomer, removeCustomer, cart, quotes, total, busy, canEdit, onIncrement, onWastage, onRemove, onRemoveGroup, onClear, onEstimate, onCheckout }: { customer: Customer | null; openCustomer: () => void; removeCustomer: () => void; cart: JewelleryItem[]; quotes: Record<string, PriceQuote>; total: number; busy: boolean; canEdit: boolean; onIncrement: (item: JewelleryItem) => void; onWastage: (item: JewelleryItem, value: string) => void; onRemove: (id: string) => void; onRemoveGroup: (productId: string) => void; onClear: () => void; onEstimate: () => void; onCheckout: () => void }) {
   const groups = Object.values((cart as CartItem[]).reduce((result, item) => { (result[item.product_id] ||= []).push(item); return result; }, {} as Record<string, CartItem[]>));
   const sum = (items: CartItem[], field: keyof JewelleryItem) => items.reduce((value, item) => value + Number(item[field] || 0), 0).toFixed(3);
+  const wastageEditor = (item: CartItem) => canEdit
+    ? <label className="wastage-input">Wastage <input key={item.wastage_percent ?? 'unset'} defaultValue={item.wastage_percent ?? ''} placeholder="Not configured" inputMode="decimal" onBlur={event => event.currentTarget.value && onWastage(item, event.currentTarget.value)} /> %</label>
+    : <p>Wastage: {item.wastage_percent ?? 'Not configured'}</p>;
   return <aside className="bill-panel"><SelectedCustomerCard customer={customer} onOpen={openCustomer} onRemove={removeCustomer}/><div className="cart-title"><h2>Bill items</h2><b>{groups.length}</b></div><div className="cart">{groups.map(items => {
     const first = items[0]; const pricePart = (field: keyof PriceQuote['breakdown']) => items.reduce((value, item) => value + Number(quotes[item.id]?.breakdown[field] || 0), 0);
     return <article key={first.product_id}><button aria-label={`Remove ${first.sku || first.name}`} onClick={() => onRemoveGroup(first.product_id)}><Trash2 /></button><small>{first.sku || first.tag_number} · {first.purity}</small><h3>{first.name || first.sku || 'Gold jewellery'}</h3><div className="cart-quantity"><button aria-label="Decrease quantity" disabled={busy} onClick={() => items.length === 1 ? onRemoveGroup(first.product_id) : onRemove(items[items.length - 1].id)}><Minus /></button><b>{items.length}</b><button aria-label="Increase quantity" disabled={busy} onClick={() => onIncrement(first)}><Plus /></button></div><p>{items.length} physical piece{items.length === 1 ? '' : 's'} selected</p><small>{items.map(item => `${item.barcode}${item.huid ? ` / ${item.huid}` : ''}`).join(' · ')}</small><label className="wastage-input">Wastage <input key={first.wastage_percent} defaultValue={first.wastage_percent || '0'} inputMode="decimal" onBlur={event => onWastage(first, event.currentTarget.value)} /> %</label><dl><dt>Gross</dt><dd>{sum(items, 'gross_weight')} g</dd><dt>Net</dt><dd>{sum(items, 'net_weight')} g</dd><dt>Fine</dt><dd>{sum(items, 'fine_weight')} g</dd><dt>Gold value</dt><dd>{formatMoney(pricePart('metal_value'))}</dd><dt>Making</dt><dd>{formatMoney(pricePart('making_charge'))}</dd><dt>Wastage</dt><dd>{formatMoney(pricePart('wastage_value'))}</dd><dt>GST</dt><dd>{formatMoney(pricePart('tax_amount'))}</dd><dt>Line total</dt><dd>{formatMoney(pricePart('total'))}</dd></dl></article>;
   })}{!cart.length && <div className="cart-empty"><Gem /><p>No items in this bill</p></div>}</div><div className="bill-total"><p><span>Physical pieces</span><b>{cart.length}</b></p><p><span>Estimated total</span><b>{formatMoney(total)}</b></p><small>Each quantity unit is a distinct serialized jewellery item.</small><div><small>ESTIMATED GRAND TOTAL</small><strong>{formatMoney(total)}</strong></div><button className="estimate-button" disabled={!cart.length} onClick={onEstimate}><Eye /> View estimate</button><button disabled={!cart.length} onClick={onCheckout}><CreditCard /> Proceed to payment</button><nav><button disabled>Old gold</button><button disabled>Exchange</button><button onClick={onClear}>Clear</button></nav></div></aside>;
 }
-
-function EstimatePreview({ cart, quotes, total, customer, onClose }: { cart: JewelleryItem[]; quotes: Record<string, PriceQuote>; total: number; customer: Customer | null; onClose: () => void }) {
-  return <div className="modal estimate-modal" role="dialog" aria-modal="true" aria-label="Estimated billing slip"><div><button className="modal-x" aria-label="Close estimate" onClick={onClose}><X /></button><small>ESTIMATED BILLING SLIP</small><h2>Provisional estimate</h2><p>{customer ? `Prepared for ${customer.name}` : 'Customer not selected'}</p><div className="estimate-lines">{cart.map((item, index) => <p key={item.id}><span>{index + 1}. {item.tag_number}<small>{item.net_weight} g net</small></span><b>{formatMoney(quotes[item.id]?.breakdown.total)}</b></p>)}</div><div className="pay-total"><span>Estimated total</span><b>{formatMoney(total)}</b></div><p className="estimate-note">This is not a tax invoice. Rates, availability, and final total are confirmed during payment.</p><button onClick={onClose}>Back to bill</button></div></div>;
-}
-
 
 function PaymentModal({ total, busy, method, setMethod, onClose, onConfirm }: { total: number; busy: boolean; method: string; setMethod: (value: string) => void; onClose: () => void; onConfirm: () => void }) {
   return <div className="modal"><div><button className="modal-x" onClick={onClose}><X /></button><small>SECURE CHECKOUT</small><h2>Collect payment</h2><p>Final price and availability are revalidated atomically by the backend.</p><div className="pay-total"><span>Amount due</span><b>{formatMoney(total)}</b></div><label>Payment method<select value={method} onChange={(e) => setMethod(e.target.value)}><option>CASH</option><option>UPI</option><option>CARD</option><option>BANK_TRANSFER</option></select></label><button disabled={busy} onClick={onConfirm}>{busy ? 'Processing…' : 'Confirm sale'}</button></div></div>;

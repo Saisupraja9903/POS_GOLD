@@ -6,19 +6,21 @@ import type { PosUser } from '../types';
 import '../styles/layout.css';
 
 export const navigation = [
-  { label: 'Billing', path: '/billing', icon: ReceiptText },
-  { label: 'Returns', path: '/returns', icon: RotateCcw },
-  { label: 'Products', path: '/products', icon: PackageSearch },
-  { label: 'Invoices', path: '/invoices', icon: ReceiptText },
-  { label: 'Reports', path: '/reports', icon: ChartNoAxesCombined },
-  { label: 'Settings', path: '/settings', icon: Settings },
+  { label: 'Billing', path: '/billing', icon: ReceiptText, permission: 'billing.view' },
+  { label: 'Returns', path: '/returns', icon: RotateCcw, permission: 'returns.view' },
+  { label: 'Products', path: '/products', icon: PackageSearch, permission: 'products.view' },
+  { label: 'Invoices', path: '/invoices', icon: ReceiptText, permission: 'invoices.view' },
+  { label: 'Reports', path: '/reports', icon: ChartNoAxesCombined, permission: 'reports.view' },
+  { label: 'Settings', path: '/settings', icon: Settings, permission: 'settings.view' },
 ] as const;
 
 export function PosLayout({ user, children }: { user: PosUser; children: ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  const current = navigation.find((item) => location.pathname.startsWith(item.path))?.label ?? 'Billing';
+  const allowed = (permission: string) => user.permissions.includes('*') || user.permissions.includes(permission);
+  const visibleNavigation = navigation.filter((item) => allowed(item.permission));
+  const current = visibleNavigation.find((item) => location.pathname.startsWith(item.path))?.label ?? 'Billing';
 
   async function signOut() {
     await logout();
@@ -30,7 +32,7 @@ export function PosLayout({ user, children }: { user: PosUser; children: ReactNo
       <aside className="side">
         <div className="pos-brand"><span>P</span><div><b>POS GOLD</b><small>JEWELLERY COUNTER</small></div></div>
         <nav>
-          {navigation.map(({ label, path, icon: Icon }) => (
+          {visibleNavigation.map(({ label, path, icon: Icon }) => (
             <button key={path} className={location.pathname.startsWith(path) ? 'active' : ''} onClick={() => navigate(path)}>
               <Icon /><span>{label}</span>
             </button>
@@ -43,7 +45,7 @@ export function PosLayout({ user, children }: { user: PosUser; children: ReactNo
           <button className="menu" aria-label="Toggle navigation" onClick={() => setCollapsed((value) => !value)}><Menu /></button>
           <div><small>POS GOLD / {current.toUpperCase()}</small><h1>{current}</h1></div>
           <div className="identity">
-            <span><small>{user.branch_name}</small><b>{user.full_name}</b><em>{user.role.name}</em></span>
+            <span><small>{user.branch_name}</small><b>{user.full_name}</b><em>{user.employee_id ? `${user.employee_id} · ` : ''}{user.role.name}</em></span>
             <button title="Sign out" onClick={signOut}><LogOut /></button>
           </div>
         </header>
