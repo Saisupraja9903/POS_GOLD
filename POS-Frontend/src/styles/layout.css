@@ -1,7 +1,0 @@
-/* Authenticated POS shell, header, sidebar and collapse interaction. */
-.pos-shell.collapsed { grid-template-columns: 72px 1fr; }
-.pos-shell.collapsed .side { width: 72px; }
-.pos-shell.collapsed .pos-brand div,
-.pos-shell.collapsed .side nav span,
-.pos-shell.collapsed .side-foot span { display: none; }
-.pos-shell.collapsed .side nav button { justify-content: center; padding-inline: 0; }

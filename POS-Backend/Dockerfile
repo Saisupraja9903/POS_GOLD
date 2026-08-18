@@ -8,4 +8,4 @@ COPY POS/POS-Backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY POS/POS-Backend /app
 EXPOSE 8100
-CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port 8100"]
+CMD ["sh", "-c", "python -m app.migrate && uvicorn app.main:app --host 0.0.0.0 --port 8100"]

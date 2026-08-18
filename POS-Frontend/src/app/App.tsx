@@ -7,9 +7,14 @@ import { BillingPage } from '../pages/BillingPage';
 import { InvoicesPage } from '../pages/InvoicesPage';
 import { InvoiceDetailPage } from '../pages/InvoiceDetailPage';
 import { ProductsPage } from '../pages/ProductsPage';
+import { BranchProductsPage } from '../pages/BranchProductsPage';
+import { BranchDashboardPage } from '../pages/BranchDashboardPage';
+import { TeamPage } from '../pages/TeamPage';
+import { ReturnReportsPage } from '../pages/ReturnReportsPage';
 import { ReportsPage } from '../pages/ReportsPage';
 import { ReturnsPage } from '../pages/ReturnsPage';
 import { SettingsPage } from '../pages/SettingsPage';
+import { hasPermission, hasRole, homeFor, POS_ROLES, roleOf, type PosRole } from '../roleAccess';
 import type { PosUser } from '../types';
 
 export function App() {
@@ -27,7 +32,7 @@ export function App() {
     api.get('/auth/me')
       .then(({ data }) => {
         setUser(data);
-        if (location.pathname === '/' || location.pathname === '') navigate('/billing', { replace: true });
+        if (location.pathname === '/' || location.pathname === '') navigate(homeFor(data), { replace: true });
       })
       .catch(() => session.clear())
       .finally(() => setCheckingSession(false));
@@ -39,21 +44,33 @@ export function App() {
   return (
     <PosLayout user={user}>
       <Routes>
-        <Route path="/billing" element={<Permitted user={user} permission="billing.view"><BillingPage user={user} /></Permitted>} />
-        <Route path="/returns" element={<Permitted user={user} permission="returns.view"><ReturnsPage /></Permitted>} />
-        <Route path="/products" element={<Permitted user={user} permission="products.view"><ProductsPage /></Permitted>} />
-        <Route path="/invoices" element={<Permitted user={user} permission="invoices.view"><InvoicesPage /></Permitted>} />
-        <Route path="/invoices/:id" element={<Permitted user={user} permission="invoices.view"><InvoiceDetailPage /></Permitted>} />
-        <Route path="/reports" element={<Permitted user={user} permission="reports.view"><ReportsPage /></Permitted>} />
-        <Route path="/settings" element={<Permitted user={user} permission="settings.view"><SettingsPage user={user} /></Permitted>} />
-        <Route path="*" element={<Navigate to="/billing" replace />} />
+        <Route path="/dashboard" element={<Permitted user={user} permission="dashboard.view" roles={[POS_ROLES.branchManager]}><BranchDashboardPage /></Permitted>} />
+        <Route path="/billing" element={roleOf(user) === POS_ROLES.branchManager ? <Navigate to="/dashboard" replace /> : <Permitted user={user} permission="billing.view" roles={[POS_ROLES.salesManager, POS_ROLES.salesPerson]}><BillingPage user={user} /></Permitted>} />
+        <Route path="/returns" element={<Permitted user={user} permission="returns.view" roles={ALL_POS_ROLES}><ReturnsPage canCreate={roleOf(user) !== POS_ROLES.branchManager} /></Permitted>} />
+        <Route path="/products" element={<Permitted user={user} permission="products.view" roles={ALL_POS_ROLES}>{roleOf(user) === POS_ROLES.branchManager ? <BranchProductsPage /> : <ProductsPage />}</Permitted>} />
+        <Route path="/invoices" element={<Permitted user={user} permission="invoices.view" roles={ALL_POS_ROLES}><InvoicesPage /></Permitted>} />
+        <Route path="/invoices/:id" element={<Permitted user={user} permission="invoices.view" roles={ALL_POS_ROLES}><InvoiceDetailPage /></Permitted>} />
+        <Route path="/team" element={<Permitted user={user} permission="staff.view" roles={[POS_ROLES.branchManager, POS_ROLES.salesManager]}><TeamPage user={user} /></Permitted>} />
+        <Route path="/reports" element={<Permitted user={user} permission="reports.view" roles={ALL_POS_ROLES}><ReportsPage /></Permitted>} />
+        <Route path="/return-reports" element={<Permitted user={user} permission="returns.view" roles={[POS_ROLES.branchManager]}><ReturnReportsPage /></Permitted>} />
+        <Route path="/settings" element={<Permitted user={user} permission="settings.view" roles={ALL_POS_ROLES}><SettingsPage user={user} /></Permitted>} />
+        <Route path="*" element={<Navigate to={homeFor(user)} replace />} />
       </Routes>
     </PosLayout>
   );
 }
 
-function Permitted({ user, permission, children }: { user: PosUser; permission: string; children: ReactNode }) {
-  return user.permissions.includes('*') || user.permissions.includes(permission)
-    ? <>{children}</>
-    : <Navigate to="/billing" replace />;
+const ALL_POS_ROLES = [POS_ROLES.branchManager, POS_ROLES.salesManager, POS_ROLES.salesPerson] as const;
+
+function Permitted({ user, permission, roles, children }: { user: PosUser; permission: string; roles: readonly PosRole[]; children: ReactNode }) {
+  if (hasRole(user, roles) && hasPermission(user, permission)) return <>{children}</>;
+
+  return <main className="grid min-h-[calc(100vh-78px)] place-items-center bg-[#f7f6f1] p-6 text-center">
+    <section className="max-w-[460px] rounded-lg border border-[#e7e4dc] bg-white p-10 shadow-sm">
+      <small className="tracking-[1.8px] text-[#b39748]">ACCESS RESTRICTED</small>
+      <h2 className="font-['Cormorant_Garamond'] text-[32px]">This screen is not available for your role</h2>
+      <p className="text-[12px] leading-6 text-[#74756f]">Signed in as {user.role.name}. Your POS administrator controls screen access.</p>
+      <a className="mt-4 inline-block rounded-md bg-[#c1a552] px-5 py-3 text-[11px] font-bold uppercase tracking-[1px] text-[#18251f] no-underline" href={homeFor(user)}>Go to my home</a>
+    </section>
+  </main>;
 }

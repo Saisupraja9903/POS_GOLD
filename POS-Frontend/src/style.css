@@ -57,3 +57,27 @@ body,.selling,.success,.pos-page{background:#f6f5f1;color:#20231f}
 .pos-shell.collapsed .side-foot span{display:none}
 .pos-shell.collapsed .side nav button{justify-content:center;padding-left:0;padding-right:0}
 .pos-shell.collapsed .side nav button.active:before{left:0}
+@import "tailwindcss";
+
+/* Transactional values use the normal UI font; serif remains for headings/branding. */
+main strong,
+main b,
+main td,
+main dd,
+main mark,
+main input,
+.bill-total strong,
+.report-grid strong,
+.pay-total b,
+.preview-total b,
+.register-summary strong,
+.stock-summary strong,
+.stock-weight b,
+.gold-facts b,
+.drawer-weights b,
+.return-weights b,
+.quantity-picker b {
+  font-family: 'Manrope', 'Segoe UI', sans-serif !important;
+  font-variant-numeric: tabular-nums;
+  font-style: normal;
+}

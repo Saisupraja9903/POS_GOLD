@@ -9,10 +9,16 @@ import { CustomerSelector, SelectedCustomerCard } from '../components/customers/
 import type { Customer } from '../types/customer';
 import { ReceiptExperience } from '../components/receipt/ReceiptExperience';
 import { EstimateBillPreview } from '../components/estimate/EstimateBillPreview';
+import { InvoicesPage } from './InvoicesPage';
 
 interface CartItem extends JewelleryItem { cartLineId: string; product_id: string; name?: string; huid?: string; purity?: string; wastage_percent: string | null }
 
 export function BillingPage({ user }: { user: PosUser }) {
+  const has = (permission: string) => user.permissions.includes('*') || user.permissions.includes(permission);
+  const canCreateBill = has('billing.create') && has('billing.cart');
+  const canEditQuantity = has('billing.quantity_edit');
+  const canEditWastage = has('billing.wastage_edit');
+  const canCheckout = has('billing.checkout') && has('billing.payment');
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<JewelleryItem[]>([]);
   const [cart, setCart] = useState<JewelleryItem[]>([]);
@@ -42,7 +48,7 @@ export function BillingPage({ user }: { user: PosUser }) {
     } catch (reason: any) { setError(reason.response?.data?.error?.message || 'Unable to load the active cart.'); }
   }
 
-  useEffect(() => { void loadActiveCart(); }, []);
+  useEffect(() => { if (canCreateBill) void loadActiveCart(); }, []);
 
   async function searchInventory() {
     if (!query.trim()) return;
@@ -143,6 +149,10 @@ export function BillingPage({ user }: { user: PosUser }) {
 
   const total = cart.reduce((sum, item) => sum + Number(quotes[item.id]?.breakdown.total || 0), 0);
 
+  // A branch manager may enter the Billing route, but it intentionally opens
+  // the existing invoice history instead of rendering counter controls.
+  if (!canCreateBill) return <InvoicesPage />;
+
   if (invoice) {
     return <ReceiptExperience invoice={invoice} onNewSale={() => setInvoice(null)} />;
   }
@@ -150,12 +160,12 @@ export function BillingPage({ user }: { user: PosUser }) {
   return (
     <section className="billing">
       <div className="selling">
-        <SearchBar query={query} setQuery={setQuery} onSearch={searchInventory} />
-        <ProductResults items={results} busy={busy} searching={searching} error={lookupError} barcode={query} quote={results[0] ? quotes[results[0].id] : undefined} onClear={() => { setQuery(''); setResults([]); setLookupError(''); }} onAdd={addToCart} />
+        <SearchBar query={query} setQuery={setQuery} onSearch={searchInventory} canSearch={canCreateBill} />
+        <ProductResults items={results} busy={busy} searching={searching} error={lookupError} barcode={query} quote={results[0] ? quotes[results[0].id] : undefined} canAdd={canCreateBill} onClear={() => { setQuery(''); setResults([]); setLookupError(''); }} onAdd={addToCart} />
         <div className="context"><span><i /> Live branch inventory</span><span>Pricing is calculated and locked by the server</span></div>
         {error && <div className="notice error">{error}</div>}
       </div>
-      <BillPanel customer={customer} openCustomer={() => setCustomerOpen(true)} removeCustomer={() => setCustomer(null)} cart={cart} quotes={quotes} total={total} busy={busy} canEdit={user.permissions.includes('*') || user.permissions.includes('billing.edit')} onIncrement={incrementGroup} onWastage={updateWastage} onRemove={removeFromCart} onRemoveGroup={removeGroup} onClear={clearCart} onEstimate={() => setEstimateOpen(true)} onCheckout={() => setCheckoutOpen(true)} />
+      <BillPanel customer={customer} openCustomer={() => setCustomerOpen(true)} removeCustomer={() => setCustomer(null)} cart={cart} quotes={quotes} total={total} busy={busy} canCreateBill={canCreateBill} canEditQuantity={canEditQuantity} canEditWastage={canEditWastage} canCheckout={canCheckout} onIncrement={incrementGroup} onWastage={updateWastage} onRemove={removeFromCart} onRemoveGroup={removeGroup} onClear={clearCart} onEstimate={() => setEstimateOpen(true)} onCheckout={() => setCheckoutOpen(true)} />
       {checkoutOpen && <PaymentModal total={total} busy={busy} method={paymentMethod} setMethod={setPaymentMethod} onClose={() => setCheckoutOpen(false)} onConfirm={completeSale} />}
       {estimateOpen && <EstimateBillPreview cart={cart} quotes={quotes} customer={customer} user={user} onClose={() => setEstimateOpen(false)} />}
       <CustomerSelector open={customerOpen} onClose={() => setCustomerOpen(false)} onSelect={(selected) => { setCustomer(selected); setCustomerOpen(false); }} />
@@ -163,15 +173,15 @@ export function BillingPage({ user }: { user: PosUser }) {
   );
 }
 
-function SearchBar({ query, setQuery, onSearch }: { query: string; setQuery: (value: string) => void; onSearch: () => void }) {
-  return <div className="scan"><ScanLine /><input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => ['Enter', 'F2'].includes(e.key) && onSearch()} placeholder="Scan or type barcode" /><button onClick={onSearch}><Search /> Search</button>{query && <button className="clear" onClick={() => setQuery('')}><X /></button>}</div>;
+function SearchBar({ query, setQuery, onSearch, canSearch }: { query: string; setQuery: (value: string) => void; onSearch: () => void; canSearch: boolean }) {
+  return <div className="scan"><ScanLine /><input autoFocus disabled={!canSearch} value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => ['Enter', 'F2'].includes(e.key) && onSearch()} placeholder={canSearch ? 'Scan or type barcode' : 'Billing is view-only for your role'} />{canSearch && <button onClick={onSearch}><Search /> Search</button>}{query && <button className="clear" onClick={() => setQuery('')}><X /></button>}</div>;
 }
 
 function LegacyProductResults({ items, busy, onAdd }: { items: JewelleryItem[]; busy: boolean; onAdd: (item: JewelleryItem) => void }) {
   return <div className="product-list">{items.map((item) => { const unavailable = item.available_count === 0 || item.availability_status === 'OUT_OF_STOCK'; return <article key={item.id}><div className="gem"><Gem /></div><div className="product-copy"><small>{item.sku || 'JEWELLERY'}</small><h3>{item.tag_number}</h3><p>{item.barcode}</p></div><div className="weights"><span>GROSS<b>{item.gross_weight} g</b></span><span>NET<b>{item.net_weight} g</b></span><span>FINE<b>{item.fine_weight} g</b></span></div><mark className={unavailable ? 'out-of-stock' : 'available'}>{unavailable ? 'OUT OF STOCK' : 'AVAILABLE'}</mark><button disabled={busy || unavailable} onClick={() => onAdd(item)}>Add to bill</button></article>})}{!items.length && <div className="search-empty"><ScanLine /><h3>Ready to scan</h3><p>Scan a jewellery barcode to validate availability and request authoritative pricing.</p><kbd>Enter</kbd></div>}</div>;
 }
 
-function ProductResults({ items, busy, searching, error, barcode, quote, onClear, onAdd }: { items: JewelleryItem[]; busy: boolean; searching: boolean; error: string; barcode: string; quote?: PriceQuote; onClear: () => void; onAdd: (item: JewelleryItem) => void }) {
+function ProductResults({ items, busy, searching, error, barcode, quote, canAdd, onClear, onAdd }: { items: JewelleryItem[]; busy: boolean; searching: boolean; error: string; barcode: string; quote?: PriceQuote; canAdd: boolean; onClear: () => void; onAdd: (item: JewelleryItem) => void }) {
   return <section className="scan-result"><div className="result-head"><div><h2>Product result</h2><p>Review the serialized piece before adding it to the bill.</p></div></div><div className="product-list">{searching ? <div className="search-empty"><ScanLine /><h3>Looking up barcode…</h3></div> : error ? <div className="search-empty result-error"><X /><h3>Product not found</h3><p>{error}</p><small>Barcode · {barcode}</small><button onClick={onClear}>Clear</button></div> : items.map(item => <article key={item.id}><div className="gem"><Gem /></div><div className="product-copy"><small>{item.sku || 'JEWELLERY'}</small><h3>{item.name || item.tag_number}</h3><p>Barcode · {item.barcode}</p>{item.huid && <p>HUID · {item.huid}</p>}<p>Purity · {item.purity}{item.fineness ? ` / ${Number(item.fineness).toFixed(0)}` : ''}</p></div><div className="weights"><span>GROSS WEIGHT<b>{item.gross_weight} g</b></span><span>NET WEIGHT<b>{item.net_weight} g</b></span><span>FINE GOLD<b>{item.fine_weight} g</b></span><span>WASTAGE<b>{item.wastage_percent || '0'}%</b></span><span>AVAILABLE<b>{item.available_count} pieces</b></span></div><dl className="result-price"><dt>Gold value</dt><dd>{formatMoney(quote?.breakdown.metal_value)}</dd><dt>Making</dt><dd>{formatMoney(quote?.breakdown.making_charge)}</dd><dt>GST</dt><dd>{formatMoney(quote?.breakdown.tax_amount)}</dd><dt>Estimate</dt><dd>{formatMoney(quote?.breakdown.total)}</dd></dl><mark className="available">AVAILABLE</mark><button disabled={busy || !quote} onClick={() => onAdd(item)}>Add to bill</button></article>)}{!searching && !error && !items.length && <div className="search-empty"><ScanLine /><h3>Ready to scan</h3><p>Scan a jewellery barcode or HUID to validate authoritative branch inventory.</p><kbd>Enter</kbd></div>}</div></section>;
 }
 
@@ -179,10 +189,10 @@ function LegacyBillPanel({ customer, openCustomer, removeCustomer, cart, quotes,
   return <aside className="bill-panel"><SelectedCustomerCard customer={customer} onOpen={openCustomer} onRemove={removeCustomer}/><div className="cart-title"><h2>Bill items</h2><b>{cart.length}</b></div><div className="cart">{cart.map((item) => { const price = quotes[item.id]?.breakdown; return <article key={item.id}><button aria-label={`Remove ${item.tag_number}`} onClick={() => onRemove(item.id)}><Trash2 /></button><small>{item.tag_number}</small><h3>{item.sku || 'Gold jewellery'}</h3><div><span>{item.net_weight} g net</span><b>{formatMoney(price?.total)}</b></div><dl><dt>Gold value</dt><dd>{formatMoney(price?.metal_value)}</dd><dt>Making</dt><dd>{formatMoney(price?.making_charge)}</dd><dt>GST</dt><dd>{formatMoney(price?.tax_amount)}</dd></dl></article>; })}{!cart.length && <div className="cart-empty"><Gem /><p>No items in this bill</p></div>}</div><div className="bill-total"><p><span>Items</span><b>{cart.length}</b></p><p><span>Estimated total</span><b>{formatMoney(total)}</b></p><small>Estimates use live rates. The final invoice is revalidated at checkout.</small><div><small>ESTIMATED GRAND TOTAL</small><strong>{formatMoney(total)}</strong></div><button className="estimate-button" disabled={!cart.length} onClick={onEstimate}><Eye /> View estimate</button><button disabled={!cart.length} onClick={onCheckout}><CreditCard /> Proceed to payment</button><nav><button disabled>Old gold</button><button disabled>Exchange</button><button onClick={onClear}>Clear</button></nav></div></aside>;
 }
 
-function BillPanel({ customer, openCustomer, removeCustomer, cart, quotes, total, busy, canEdit, onIncrement, onWastage, onRemove, onRemoveGroup, onClear, onEstimate, onCheckout }: { customer: Customer | null; openCustomer: () => void; removeCustomer: () => void; cart: JewelleryItem[]; quotes: Record<string, PriceQuote>; total: number; busy: boolean; canEdit: boolean; onIncrement: (item: JewelleryItem) => void; onWastage: (item: JewelleryItem, value: string) => void; onRemove: (id: string) => void; onRemoveGroup: (productId: string) => void; onClear: () => void; onEstimate: () => void; onCheckout: () => void }) {
+function BillPanel({ customer, openCustomer, removeCustomer, cart, quotes, total, busy, canCreateBill, canEditQuantity, canEditWastage, canCheckout, onIncrement, onWastage, onRemove, onRemoveGroup, onClear, onEstimate, onCheckout }: { customer: Customer | null; openCustomer: () => void; removeCustomer: () => void; cart: JewelleryItem[]; quotes: Record<string, PriceQuote>; total: number; busy: boolean; canCreateBill: boolean; canEditQuantity: boolean; canEditWastage: boolean; canCheckout: boolean; onIncrement: (item: JewelleryItem) => void; onWastage: (item: JewelleryItem, value: string) => void; onRemove: (id: string) => void; onRemoveGroup: (productId: string) => void; onClear: () => void; onEstimate: () => void; onCheckout: () => void }) {
   const groups = Object.values((cart as CartItem[]).reduce((result, item) => { (result[item.product_id] ||= []).push(item); return result; }, {} as Record<string, CartItem[]>));
   const sum = (items: CartItem[], field: keyof JewelleryItem) => items.reduce((value, item) => value + Number(item[field] || 0), 0).toFixed(3);
-  const wastageEditor = (item: CartItem) => canEdit
+  const wastageEditor = (item: CartItem) => canEditWastage
     ? <label className="wastage-input">Wastage <input key={item.wastage_percent ?? 'unset'} defaultValue={item.wastage_percent ?? ''} placeholder="Not configured" inputMode="decimal" onBlur={event => event.currentTarget.value && onWastage(item, event.currentTarget.value)} /> %</label>
     : <p>Wastage: {item.wastage_percent ?? 'Not configured'}</p>;
   return <aside className="bill-panel"><SelectedCustomerCard customer={customer} onOpen={openCustomer} onRemove={removeCustomer}/><div className="cart-title"><h2>Bill items</h2><b>{groups.length}</b></div><div className="cart">{groups.map(items => {
