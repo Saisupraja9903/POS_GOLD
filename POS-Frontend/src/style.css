@@ -81,3 +81,77 @@ main input,
   font-variant-numeric: tabular-nums;
   font-style: normal;
 }
+
+/* Larger invoice-register text for faster reading. */
+.invoice-table header { font-size: 10px !important; font-weight: 700; }
+.invoice-table article { font-size: 12px !important; }
+.invoice-table small { font-size: 10px !important; }
+.invoice-table mark { font-size: 10px !important; }
+.invoice-table article > button { font-size: 10px !important; font-weight: 700; }
+.invoice-pages { font-size: 11px !important; }
+
+/* Larger read-only Products and Team text for Branch Managers. */
+.branch-products-font .available-table header,
+.branch-team-font .available-table header {
+  font-size: 10px !important;
+  font-weight: 700;
+}
+.branch-products-font .available-table article,
+.branch-team-font .available-table article {
+  font-size: 12px !important;
+}
+.branch-products-font .available-table small,
+.branch-team-font .available-table small {
+  font-size: 10px !important;
+}
+.branch-products-font .available-table mark,
+.branch-team-font .available-table mark,
+.branch-team-font .available-table button {
+  font-size: 10px !important;
+}
+
+/* Larger read-only Products text for Sales Managers. */
+.sales-manager-products-font .available-table header {
+  font-size: 10px !important;
+  font-weight: 700;
+}
+.sales-manager-products-font .available-table article {
+  font-size: 12px !important;
+}
+.sales-manager-products-font .available-table small,
+.sales-manager-products-font .stock-summary small,
+.sales-manager-products-font .stock-summary p,
+.sales-manager-products-font .product-pages {
+  font-size: 10px !important;
+}
+.sales-manager-products-font .available-table mark {
+  font-size: 10px !important;
+}
+.sales-manager-products-font .stock-weight b {
+  font-size: 16px !important;
+}
+
+/* Reports: reduce values only; keep metric labels unchanged. */
+.reports-number-size article strong {
+  font-size: 21px !important;
+  line-height: 1.2;
+}
+
+/* Return Reports: reduce values only; keep labels unchanged. */
+.return-reports-number-size article strong {
+  font-size: 21px !important;
+  line-height: 1.2;
+}
+
+/* Keep the header exit glyph centered inside its circular button. */
+button[title="Sign out"] {
+  display: grid;
+  place-items: center;
+  padding: 0;
+  flex-shrink: 0;
+}
+button[title="Sign out"] svg {
+  width: 15px;
+  height: 15px;
+  margin: 0;
+}

@@ -1,19 +1,18 @@
 import { useState, type ReactNode } from 'react';
-import { ChartNoAxesCombined, FileChartColumn, LayoutDashboard, LogOut, Menu, PackageSearch, ReceiptText, RotateCcw, Settings, Users } from 'lucide-react';
+import { ChartNoAxesCombined, FileChartColumn, LogOut, Menu, PackageSearch, ReceiptText, RotateCcw, Settings, Users } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { logout } from '../auth';
 import { hasPermission, hasRole, POS_ROLES, type PosRole } from '../roleAccess';
 import type { PosUser } from '../types';
 
 export const navigation = [
-  { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard, permission: 'dashboard.view', roles: [POS_ROLES.branchManager] },
-  { label: 'Billing', path: '/billing', icon: ReceiptText, permission: 'billing.view', roles: [POS_ROLES.salesManager, POS_ROLES.salesPerson] },
+  { label: 'Billing', path: '/billing', icon: ReceiptText, permission: 'billing.view', roles: [POS_ROLES.salesPerson] },
   { label: 'Returns', path: '/returns', icon: RotateCcw, permission: 'returns.view', roles: [POS_ROLES.branchManager, POS_ROLES.salesManager, POS_ROLES.salesPerson] },
   { label: 'Products', path: '/products', icon: PackageSearch, permission: 'products.view', roles: [POS_ROLES.branchManager, POS_ROLES.salesManager, POS_ROLES.salesPerson] },
   { label: 'Invoices', path: '/invoices', icon: ReceiptText, permission: 'invoices.view', roles: [POS_ROLES.branchManager, POS_ROLES.salesManager, POS_ROLES.salesPerson] },
   { label: 'Team', path: '/team', icon: Users, permission: 'staff.view', roles: [POS_ROLES.branchManager, POS_ROLES.salesManager] },
   { label: 'Reports', path: '/reports', icon: ChartNoAxesCombined, permission: 'reports.view', roles: [POS_ROLES.branchManager, POS_ROLES.salesManager, POS_ROLES.salesPerson] },
-  { label: 'Return Reports', path: '/return-reports', icon: FileChartColumn, permission: 'returns.view', roles: [POS_ROLES.branchManager] },
+  { label: 'Return Reports', path: '/return-reports', icon: FileChartColumn, permission: 'returns.view', roles: [POS_ROLES.branchManager, POS_ROLES.salesManager] },
   { label: 'Settings', path: '/settings', icon: Settings, permission: 'settings.view', roles: [POS_ROLES.branchManager, POS_ROLES.salesManager, POS_ROLES.salesPerson] },
 ] satisfies ReadonlyArray<{ label: string; path: string; icon: typeof ReceiptText; permission: string; roles: readonly PosRole[] }>;
 

@@ -8,7 +8,6 @@ import { InvoicesPage } from '../pages/InvoicesPage';
 import { InvoiceDetailPage } from '../pages/InvoiceDetailPage';
 import { ProductsPage } from '../pages/ProductsPage';
 import { BranchProductsPage } from '../pages/BranchProductsPage';
-import { BranchDashboardPage } from '../pages/BranchDashboardPage';
 import { TeamPage } from '../pages/TeamPage';
 import { ReturnReportsPage } from '../pages/ReturnReportsPage';
 import { ReportsPage } from '../pages/ReportsPage';
@@ -44,15 +43,15 @@ export function App() {
   return (
     <PosLayout user={user}>
       <Routes>
-        <Route path="/dashboard" element={<Permitted user={user} permission="dashboard.view" roles={[POS_ROLES.branchManager]}><BranchDashboardPage /></Permitted>} />
-        <Route path="/billing" element={roleOf(user) === POS_ROLES.branchManager ? <Navigate to="/dashboard" replace /> : <Permitted user={user} permission="billing.view" roles={[POS_ROLES.salesManager, POS_ROLES.salesPerson]}><BillingPage user={user} /></Permitted>} />
-        <Route path="/returns" element={<Permitted user={user} permission="returns.view" roles={ALL_POS_ROLES}><ReturnsPage canCreate={roleOf(user) !== POS_ROLES.branchManager} /></Permitted>} />
-        <Route path="/products" element={<Permitted user={user} permission="products.view" roles={ALL_POS_ROLES}>{roleOf(user) === POS_ROLES.branchManager ? <BranchProductsPage /> : <ProductsPage />}</Permitted>} />
+        <Route path="/dashboard" element={<Navigate to={homeFor(user)} replace />} />
+        <Route path="/billing" element={roleOf(user) !== POS_ROLES.salesPerson ? <Navigate to={homeFor(user)} replace /> : <Permitted user={user} permission="billing.view" roles={[POS_ROLES.salesPerson]}><BillingPage user={user} /></Permitted>} />
+        <Route path="/returns" element={<Permitted user={user} permission="returns.view" roles={ALL_POS_ROLES}><ReturnsPage canCreate={roleOf(user) === POS_ROLES.salesPerson} /></Permitted>} />
+        <Route path="/products" element={<Permitted user={user} permission="products.view" roles={ALL_POS_ROLES}>{roleOf(user) === POS_ROLES.branchManager ? <BranchProductsPage /> : roleOf(user) === POS_ROLES.salesManager ? <div className="sales-manager-products-font"><ProductsPage canAddToBill={false} /></div> : <ProductsPage canAddToBill />}</Permitted>} />
         <Route path="/invoices" element={<Permitted user={user} permission="invoices.view" roles={ALL_POS_ROLES}><InvoicesPage /></Permitted>} />
         <Route path="/invoices/:id" element={<Permitted user={user} permission="invoices.view" roles={ALL_POS_ROLES}><InvoiceDetailPage /></Permitted>} />
-        <Route path="/team" element={<Permitted user={user} permission="staff.view" roles={[POS_ROLES.branchManager, POS_ROLES.salesManager]}><TeamPage user={user} /></Permitted>} />
+        <Route path="/team" element={<Permitted user={user} permission="staff.view" roles={[POS_ROLES.branchManager, POS_ROLES.salesManager]}>{roleOf(user) === POS_ROLES.branchManager ? <div className="branch-team-font"><TeamPage user={user} /></div> : <TeamPage user={user} />}</Permitted>} />
         <Route path="/reports" element={<Permitted user={user} permission="reports.view" roles={ALL_POS_ROLES}><ReportsPage /></Permitted>} />
-        <Route path="/return-reports" element={<Permitted user={user} permission="returns.view" roles={[POS_ROLES.branchManager]}><ReturnReportsPage /></Permitted>} />
+        <Route path="/return-reports" element={<Permitted user={user} permission="returns.view" roles={[POS_ROLES.branchManager, POS_ROLES.salesManager]}><div className="return-reports-number-size"><ReturnReportsPage /></div></Permitted>} />
         <Route path="/settings" element={<Permitted user={user} permission="settings.view" roles={ALL_POS_ROLES}><SettingsPage user={user} /></Permitted>} />
         <Route path="*" element={<Navigate to={homeFor(user)} replace />} />
       </Routes>

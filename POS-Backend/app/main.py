@@ -61,14 +61,14 @@ async def current_pos_user(client: httpx.AsyncClient, headers: dict[str, str]) -
     response = await client.get(f"{ERP_URL}/auth/me", headers=headers)
     return response.json() if response.status_code == 200 else None
 
-async def require_branch_manager(request: Request):
+async def require_team_manager(request: Request):
     headers = {k: v for k, v in request.headers.items() if k.lower() == "authorization"}
     async with httpx.AsyncClient(timeout=30) as client:
         user = await current_pos_user(client, headers)
     if not user:
         return None, JSONResponse(status_code=401, content={"error": {"code": "NOT_AUTHENTICATED", "message": "Authentication required."}})
-    if user.get("role", {}).get("code") != "BRANCH_MANAGER" or not user.get("branch_id"):
-        return None, JSONResponse(status_code=403, content={"error": {"code": "POS_TEAM_FORBIDDEN", "message": "Branch Manager access is required."}})
+    if user.get("role", {}).get("code") not in {"BRANCH_MANAGER", "SALES_MANAGER"} or not user.get("branch_id"):
+        return None, JSONResponse(status_code=403, content={"error": {"code": "POS_TEAM_FORBIDDEN", "message": "Team manager access is required."}})
     return user, None
 
 @app.get("/api/v1/health")
@@ -87,24 +87,28 @@ async def branch_team(request: Request):
     branch_id = user.get("branch_id")
     if not branch_id:
         return []
-    query = text("""SELECT u.id, u.full_name, u.email, u.employee_id, u.phone, u.is_active,
+    is_sales_manager = user.get("role", {}).get("code") == "SALES_MANAGER"
+    query = text("""SELECT u.id, u.full_name, u.email, u.employee_id, u.phone, u.is_active, u.manager_id,
                            r.code AS role_code, r.name AS role_name
                     FROM users u JOIN roles r ON r.id = u.role_id
                     WHERE u.branch_id = CAST(:branch_id AS uuid)
-                      AND r.code IN ('BRANCH_MANAGER','SALES_MANAGER','SALES_PERSON')
+                      AND ((:sales_manager=false AND r.code IN ('BRANCH_MANAGER','SALES_MANAGER','SALES_PERSON'))
+                           OR (:sales_manager=true AND r.code='SALES_PERSON' AND u.manager_id=CAST(:manager_id AS uuid)))
                     ORDER BY CASE r.code WHEN 'BRANCH_MANAGER' THEN 1 WHEN 'SALES_MANAGER' THEN 2 ELSE 3 END,
                              u.full_name""")
     async with engine.connect() as connection:
-        rows = (await connection.execute(query, {"branch_id": branch_id})).mappings().all()
-    return [{**dict(row), "id": str(row["id"])} for row in rows]
+        rows = (await connection.execute(query, {"branch_id": branch_id, "sales_manager": is_sales_manager, "manager_id": user.get("id")})).mappings().all()
+    return [{**dict(row), "id": str(row["id"]), "manager_id": str(row["manager_id"]) if row["manager_id"] else None} for row in rows]
 
 @app.post("/api/v1/pos/team", status_code=201)
 async def create_branch_staff(body: StaffCreate, request: Request):
-    user, error = await require_branch_manager(request)
+    user, error = await require_team_manager(request)
     if error: return error
     role_code = body.role_code.upper()
-    if role_code not in {"SALES_MANAGER", "SALES_PERSON"}:
-        return JSONResponse(status_code=403, content={"error": {"code": "ROLE_NOT_ALLOWED", "message": "Branch Managers may create only Sales Managers and Sales Persons."}})
+    is_sales_manager = user["role"]["code"] == "SALES_MANAGER"
+    allowed_roles = {"SALES_PERSON"} if is_sales_manager else {"SALES_MANAGER", "SALES_PERSON"}
+    if role_code not in allowed_roles:
+        return JSONResponse(status_code=403, content={"error": {"code": "ROLE_NOT_ALLOWED", "message": "This role cannot be created by the current manager."}})
     async with engine.begin() as connection:
         duplicate = (await connection.execute(text("SELECT 1 FROM users WHERE lower(email)=lower(:email) OR upper(employee_id)=upper(:employee_id)"), {"email": str(body.email), "employee_id": body.employee_id})).first()
         if duplicate:
@@ -112,50 +116,64 @@ async def create_branch_staff(body: StaffCreate, request: Request):
         role_id = (await connection.execute(text("SELECT id FROM roles WHERE code=:role"), {"role": role_code})).scalar_one_or_none()
         if not role_id:
             return JSONResponse(status_code=422, content={"error": {"code": "ROLE_NOT_FOUND", "message": "Selected role is unavailable."}})
-        row = (await connection.execute(text("""INSERT INTO users (id,email,employee_id,phone,full_name,hashed_password,is_active,role_id,branch_id,created_at,updated_at)
-            VALUES (:id,lower(:email),upper(:employee_id),:phone,:full_name,:password,true,:role_id,CAST(:branch_id AS uuid),now(),now())
-            RETURNING id"""), {"id": uuid.uuid4(), "email": str(body.email), "employee_id": body.employee_id, "phone": body.phone, "full_name": body.full_name.strip(), "password": password_hasher.hash(body.password), "role_id": role_id, "branch_id": user["branch_id"]})).scalar_one()
+        row = (await connection.execute(text("""INSERT INTO users (id,email,employee_id,phone,full_name,hashed_password,is_active,role_id,branch_id,manager_id,created_at,updated_at)
+            VALUES (:id,lower(:email),upper(:employee_id),:phone,:full_name,:password,true,:role_id,CAST(:branch_id AS uuid),CAST(:manager_id AS uuid),now(),now())
+            RETURNING id"""), {"id": uuid.uuid4(), "email": str(body.email), "employee_id": body.employee_id, "phone": body.phone, "full_name": body.full_name.strip(), "password": password_hasher.hash(body.password), "role_id": role_id, "branch_id": user["branch_id"], "manager_id": user["id"] if is_sales_manager else None})).scalar_one()
     return {"id": str(row), "message": "Staff member created."}
 
 @app.patch("/api/v1/pos/team/{staff_id}")
 async def update_branch_staff(staff_id: uuid.UUID, body: StaffUpdate, request: Request):
-    user, error = await require_branch_manager(request)
+    user, error = await require_team_manager(request)
     if error: return error
     values = body.model_dump(exclude_none=True)
     if not values: return {"message": "No changes supplied."}
-    assignments = []; params = {"staff_id": staff_id, "branch_id": user["branch_id"]}
+    is_sales_manager = user["role"]["code"] == "SALES_MANAGER"
+    assignments = []; params = {"staff_id": staff_id, "branch_id": user["branch_id"], "manager_id": user["id"], "sales_manager": is_sales_manager}
     for field, value in values.items():
         assignments.append(f"{field}=:{field}"); params[field] = str(value).lower() if field == "email" else value
     async with engine.begin() as connection:
         result = await connection.execute(text(f"""UPDATE users SET {','.join(assignments)},updated_at=now() WHERE id=:staff_id
-            AND branch_id=CAST(:branch_id AS uuid) AND role_id IN (SELECT id FROM roles WHERE code IN ('SALES_MANAGER','SALES_PERSON')) RETURNING id"""), params)
+            AND branch_id=CAST(:branch_id AS uuid)
+            AND ((:sales_manager=false AND role_id IN (SELECT id FROM roles WHERE code IN ('SALES_MANAGER','SALES_PERSON')))
+                 OR (:sales_manager=true AND manager_id=CAST(:manager_id AS uuid) AND role_id=(SELECT id FROM roles WHERE code='SALES_PERSON')))
+            RETURNING id"""), params)
         if not result.scalar_one_or_none():
             return JSONResponse(status_code=403, content={"error": {"code": "STAFF_OUTSIDE_BRANCH", "message": "This employee cannot be managed."}})
     return {"message": "Staff member updated."}
 
 @app.post("/api/v1/pos/team/{staff_id}/{action}")
 async def set_branch_staff_status(staff_id: uuid.UUID, action: str, request: Request):
-    user, error = await require_branch_manager(request)
+    user, error = await require_team_manager(request)
     if error: return error
     if action not in {"enable", "disable"}:
         return JSONResponse(status_code=404, content={"error": {"code": "UNKNOWN_ACTION", "message": "Unknown staff action."}})
     async with engine.begin() as connection:
+        is_sales_manager = user["role"]["code"] == "SALES_MANAGER"
         result = await connection.execute(text("""UPDATE users SET is_active=:active,updated_at=now() WHERE id=:staff_id
-            AND branch_id=CAST(:branch_id AS uuid) AND role_id IN (SELECT id FROM roles WHERE code IN ('SALES_MANAGER','SALES_PERSON')) RETURNING id"""),
-            {"active": action == "enable", "staff_id": staff_id, "branch_id": user["branch_id"]})
+            AND branch_id=CAST(:branch_id AS uuid)
+            AND ((:sales_manager=false AND role_id IN (SELECT id FROM roles WHERE code IN ('SALES_MANAGER','SALES_PERSON')))
+                 OR (:sales_manager=true AND manager_id=CAST(:manager_id AS uuid) AND role_id=(SELECT id FROM roles WHERE code='SALES_PERSON')))
+            RETURNING id"""), {"active": action == "enable", "staff_id": staff_id, "branch_id": user["branch_id"], "manager_id": user["id"], "sales_manager": is_sales_manager})
         if not result.scalar_one_or_none():
             return JSONResponse(status_code=403, content={"error": {"code": "STAFF_OUTSIDE_BRANCH", "message": "This employee cannot be managed."}})
     return {"message": f"Staff member {action}d."}
 
 @app.delete("/api/v1/pos/team/{staff_id}")
 async def delete_branch_staff(staff_id: uuid.UUID, request: Request):
-    user, error = await require_branch_manager(request)
+    user, error = await require_team_manager(request)
     if error: return error
+    is_sales_manager = user["role"]["code"] == "SALES_MANAGER"
     async with engine.begin() as connection:
         target = (await connection.execute(text("""SELECT u.id FROM users u JOIN roles r ON r.id=u.role_id WHERE u.id=:staff_id
-            AND u.branch_id=CAST(:branch_id AS uuid) AND r.code IN ('SALES_MANAGER','SALES_PERSON')"""), {"staff_id": staff_id, "branch_id": user["branch_id"]})).scalar_one_or_none()
+            AND u.branch_id=CAST(:branch_id AS uuid)
+            AND ((:sales_manager=false AND r.code IN ('SALES_MANAGER','SALES_PERSON'))
+                 OR (:sales_manager=true AND r.code='SALES_PERSON' AND u.manager_id=CAST(:manager_id AS uuid)))"""),
+            {"staff_id": staff_id, "branch_id": user["branch_id"], "manager_id": user["id"], "sales_manager": is_sales_manager})).scalar_one_or_none()
         if not target:
             return JSONResponse(status_code=403, content={"error": {"code": "STAFF_OUTSIDE_BRANCH", "message": "This employee cannot be managed."}})
+        if is_sales_manager:
+            await connection.execute(text("UPDATE users SET is_active=false,updated_at=now() WHERE id=:staff_id"), {"staff_id": staff_id})
+            return Response(status_code=204)
         used = (await connection.execute(text("SELECT 1 FROM sales WHERE salesperson_id=:staff_id LIMIT 1"), {"staff_id": staff_id})).first()
         if used:
             return JSONResponse(status_code=409, content={"error": {"code": "STAFF_HAS_HISTORY", "message": "This employee has sales history and must be disabled instead of deleted."}})
@@ -210,10 +228,10 @@ async def gateway(path: str, request: Request):
     async with httpx.AsyncClient(timeout=30) as client:
         if branch_manager_operation_blocked(request.method, path):
             role = await current_pos_role(client, headers)
-            if role == "BRANCH_MANAGER":
+            if role in {"BRANCH_MANAGER", "SALES_MANAGER"}:
                 return JSONResponse(status_code=403, content={"error": {
                     "code": "POS_SUPERVISORY_ROLE",
-                    "message": "Branch Managers can monitor branch activity but cannot perform counter operations.",
+                    "message": "Managers can monitor branch activity but cannot perform counter operations.",
                 }})
         upstream = await client.request(request.method, f"{ERP_URL}/{path}", params=request.query_params,
                                         content=await request.body(), headers=headers)

@@ -28,7 +28,10 @@ export function roleOf(user: PosUser): PosRole | null {
 }
 
 export function homeFor(user: PosUser) {
-  return roleOf(user) === POS_ROLES.branchManager ? '/dashboard' : '/billing';
+  const role = roleOf(user);
+  if (role === POS_ROLES.branchManager) return '/reports';
+  if (role === POS_ROLES.salesManager) return '/team';
+  return '/billing';
 }
 
 export function hasPermission(user: PosUser, permission: string) {
