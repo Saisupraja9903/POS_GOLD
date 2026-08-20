@@ -12,11 +12,11 @@ describe('estimated bill document', () => {
   it('groups quantity by design in the one reusable document', () => {
     const data = createEstimatedBillData({ cart, quotes, customer: { name: 'Riya Shah', phone: '9876543210' }, user, issuedAt: new Date('2026-08-18T10:00:00Z') });
     render(<EstimatedBillDocument data={data} />);
-    expect(screen.getByText('ESTIMATE / QUOTATION')).toBeInTheDocument();
-    expect(screen.getByText('Your selected jewellery')).toBeInTheDocument();
+    expect(screen.getAllByText(/^EST-/)).toHaveLength(2);
+    expect(screen.getByText('PRODUCT DETAILS')).toBeInTheDocument();
     expect(screen.getAllByText('Flower Ring')).toHaveLength(1);
     expect(screen.getByText('Stone charges')).toBeInTheDocument();
-    expect(screen.getByText(/provisional price estimate and not a tax invoice/i)).toBeInTheDocument();
+    expect(screen.getByText(/please retain this estimate for reference/i)).toBeInTheDocument();
   });
 
   it('prints the rendered shared document', () => {

@@ -31,10 +31,13 @@ export interface PosUser {
 
 export interface PriceQuote {
   rate_per_gram?: string;
+  weight?: { gross: string; stone: string; net_gold: string; fine_gold: string };
   breakdown: {
     metal_value: string;
     making_charge: string;
     wastage_value?: string;
+    wastage_charge?: string;
+    stone_value?: string;
     discount?: string;
     subtotal?: string;
     tax_amount: string;

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { CreditCard, Eye, Gem, Minus, Plus, ScanLine, Search, Trash2, X } from 'lucide-react';
+import { CreditCard, Eye, Gem, Minus, Pencil, Plus, ScanLine, Search, Trash2, X } from 'lucide-react';
 import { api } from '../auth';
 import type { JewelleryItem, PosUser, PriceQuote } from '../types';
 import { formatMoney } from '../utils/format';
@@ -11,7 +11,7 @@ import { ReceiptExperience } from '../components/receipt/ReceiptExperience';
 import { EstimateBillPreview } from '../components/estimate/EstimateBillPreview';
 import { InvoicesPage } from './InvoicesPage';
 
-interface CartItem extends JewelleryItem { cartLineId: string; product_id: string; name?: string; huid?: string; purity?: string; wastage_percent: string | null }
+interface CartItem extends JewelleryItem { cartLineId: string; product_id: string; name?: string; huid?: string; purity?: string; wastage_percent: string | null; making_charge?: string; stone_charge?: string; discount?: string; pricing_status?: string; quote?: PriceQuote }
 
 export function BillingPage({ user }: { user: PosUser }) {
   const has = (permission: string) => user.permissions.includes('*') || user.permissions.includes(permission);
@@ -33,6 +33,7 @@ export function BillingPage({ user }: { user: PosUser }) {
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [customerOpen, setCustomerOpen] = useState(false);
   const [estimateOpen, setEstimateOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<CartItem | null>(null);
   const cartIds = useRef(new Set(cart.map(item => item.id)));
   const addingIds = useRef(new Set<string>());
 
@@ -41,8 +42,8 @@ export function BillingPage({ user }: { user: PosUser }) {
     try {
       const { data } = await api.get('/pos/cart/active');
       const lines = data.lines as Array<JewelleryItem & { id: string; item_id: string }>;
-      const items = lines.map(line => ({ ...line, id: line.item_id, cartLineId: line.id } as JewelleryItem));
-      const priced = await Promise.all(items.map(async item => [item.id, (await api.post<PriceQuote>('/sales/quote', { item_id: item.id, tax_rate_percent: '3', ...(Number((item as CartItem).wastage_percent) > 0 ? { wastage: { method: 'PERCENTAGE', value: (item as CartItem).wastage_percent } } : {}) })).data] as const));
+      const items = lines.map(line => ({ ...line, id: line.item_id, cartLineId: line.id } as CartItem));
+      const priced = items.map(item => [item.id, item.quote] as const).filter((entry): entry is [string, PriceQuote] => Boolean(entry[1]));
       setCart(items);
       setQuotes(Object.fromEntries(priced));
     } catch (reason: any) { setError(reason.response?.data?.error?.message || 'Unable to load the active cart.'); }
@@ -117,6 +118,21 @@ export function BillingPage({ user }: { user: PosUser }) {
     catch (reason: any) { setError(reason.response?.data?.error?.message || 'Enter a valid wastage percentage.'); }
     finally { setBusy(false); }
   }
+  async function updatePricing(item: CartItem, values: Record<string, string>) {
+    setBusy(true); setError('');
+    try {
+      await api.patch('/pos/cart/pricing', { item_id: item.id, ...values });
+      await loadActiveCart();
+      setEditingItem(null);
+    } catch (reason: any) { setError(reason.response?.data?.error?.message || 'Unable to recalculate pricing.'); }
+    finally { setBusy(false); }
+  }
+  async function confirmNegotiation() {
+    setBusy(true); setError('');
+    try { await api.post('/pos/cart/pricing/confirm'); await loadActiveCart(); }
+    catch (reason: any) { setError(reason.response?.data?.error?.message || 'Unable to confirm the negotiated price.'); }
+    finally { setBusy(false); }
+  }
 
   function clearCart() {
     if (!cart.length || !window.confirm('Clear every item from this active cart?')) return;
@@ -165,9 +181,11 @@ export function BillingPage({ user }: { user: PosUser }) {
         <div className="context"><span><i /> Live branch inventory</span><span>Pricing is calculated and locked by the server</span></div>
         {error && <div className="notice error">{error}</div>}
       </div>
-      <BillPanel customer={customer} openCustomer={() => setCustomerOpen(true)} removeCustomer={() => setCustomer(null)} cart={cart} quotes={quotes} total={total} busy={busy} canCreateBill={canCreateBill} canEditQuantity={canEditQuantity} canEditWastage={canEditWastage} canCheckout={canCheckout} onIncrement={incrementGroup} onWastage={updateWastage} onRemove={removeFromCart} onRemoveGroup={removeGroup} onClear={clearCart} onEstimate={() => setEstimateOpen(true)} onCheckout={() => setCheckoutOpen(true)} />
+      <div className="pricing-action"><button disabled={!cart.length || busy} onClick={() => setEditingItem(cart[0] as CartItem)}><Pencil /> Negotiate pricing</button>{(cart as CartItem[]).some(item => item.pricing_status === 'NEGOTIATING') && <button disabled={busy} onClick={confirmNegotiation}>Confirm negotiated price</button>}</div>
+      <BillPanel customer={customer} openCustomer={() => setCustomerOpen(true)} removeCustomer={() => setCustomer(null)} cart={cart} quotes={quotes} total={total} busy={busy} canCreateBill={canCreateBill} canEditQuantity={canEditQuantity} canEditWastage={canEditWastage} canCheckout={canCheckout} onIncrement={incrementGroup} onWastage={updateWastage} onEditPricing={setEditingItem} onConfirmNegotiation={confirmNegotiation} onRemove={removeFromCart} onRemoveGroup={removeGroup} onClear={clearCart} onEstimate={() => setEstimateOpen(true)} onCheckout={() => setCheckoutOpen(true)} />
       {checkoutOpen && <PaymentModal total={total} busy={busy} method={paymentMethod} setMethod={setPaymentMethod} onClose={() => setCheckoutOpen(false)} onConfirm={completeSale} />}
       {estimateOpen && <EstimateBillPreview cart={cart} quotes={quotes} customer={customer} user={user} onClose={() => setEstimateOpen(false)} />}
+      {editingItem && <PricingDrawer item={editingItem} quote={quotes[editingItem.id]} busy={busy} onClose={() => setEditingItem(null)} onApply={updatePricing} />}
       <CustomerSelector open={customerOpen} onClose={() => setCustomerOpen(false)} onSelect={(selected) => { setCustomer(selected); setCustomerOpen(false); }} />
     </section>
   );
@@ -189,7 +207,7 @@ function LegacyBillPanel({ customer, openCustomer, removeCustomer, cart, quotes,
   return <aside className="bill-panel"><SelectedCustomerCard customer={customer} onOpen={openCustomer} onRemove={removeCustomer}/><div className="cart-title"><h2>Bill items</h2><b>{cart.length}</b></div><div className="cart">{cart.map((item) => { const price = quotes[item.id]?.breakdown; return <article key={item.id}><button aria-label={`Remove ${item.tag_number}`} onClick={() => onRemove(item.id)}><Trash2 /></button><small>{item.tag_number}</small><h3>{item.sku || 'Gold jewellery'}</h3><div><span>{item.net_weight} g net</span><b>{formatMoney(price?.total)}</b></div><dl><dt>Gold value</dt><dd>{formatMoney(price?.metal_value)}</dd><dt>Making</dt><dd>{formatMoney(price?.making_charge)}</dd><dt>GST</dt><dd>{formatMoney(price?.tax_amount)}</dd></dl></article>; })}{!cart.length && <div className="cart-empty"><Gem /><p>No items in this bill</p></div>}</div><div className="bill-total"><p><span>Items</span><b>{cart.length}</b></p><p><span>Estimated total</span><b>{formatMoney(total)}</b></p><small>Estimates use live rates. The final invoice is revalidated at checkout.</small><div><small>ESTIMATED GRAND TOTAL</small><strong>{formatMoney(total)}</strong></div><button className="estimate-button" disabled={!cart.length} onClick={onEstimate}><Eye /> View estimate</button><button disabled={!cart.length} onClick={onCheckout}><CreditCard /> Proceed to payment</button><nav><button disabled>Old gold</button><button disabled>Exchange</button><button onClick={onClear}>Clear</button></nav></div></aside>;
 }
 
-function BillPanel({ customer, openCustomer, removeCustomer, cart, quotes, total, busy, canCreateBill, canEditQuantity, canEditWastage, canCheckout, onIncrement, onWastage, onRemove, onRemoveGroup, onClear, onEstimate, onCheckout }: { customer: Customer | null; openCustomer: () => void; removeCustomer: () => void; cart: JewelleryItem[]; quotes: Record<string, PriceQuote>; total: number; busy: boolean; canCreateBill: boolean; canEditQuantity: boolean; canEditWastage: boolean; canCheckout: boolean; onIncrement: (item: JewelleryItem) => void; onWastage: (item: JewelleryItem, value: string) => void; onRemove: (id: string) => void; onRemoveGroup: (productId: string) => void; onClear: () => void; onEstimate: () => void; onCheckout: () => void }) {
+function BillPanel({ customer, openCustomer, removeCustomer, cart, quotes, total, busy, canCreateBill, canEditQuantity, canEditWastage, canCheckout, onIncrement, onWastage, onEditPricing, onConfirmNegotiation, onRemove, onRemoveGroup, onClear, onEstimate, onCheckout }: { customer: Customer | null; openCustomer: () => void; removeCustomer: () => void; cart: JewelleryItem[]; quotes: Record<string, PriceQuote>; total: number; busy: boolean; canCreateBill: boolean; canEditQuantity: boolean; canEditWastage: boolean; canCheckout: boolean; onIncrement: (item: JewelleryItem) => void; onWastage: (item: JewelleryItem, value: string) => void; onEditPricing: (item: CartItem) => void; onConfirmNegotiation: () => void; onRemove: (id: string) => void; onRemoveGroup: (productId: string) => void; onClear: () => void; onEstimate: () => void; onCheckout: () => void }) {
   const groups = Object.values((cart as CartItem[]).reduce((result, item) => { (result[item.product_id] ||= []).push(item); return result; }, {} as Record<string, CartItem[]>));
   const sum = (items: CartItem[], field: keyof JewelleryItem) => items.reduce((value, item) => value + Number(item[field] || 0), 0).toFixed(3);
   const wastageEditor = (item: CartItem) => canEditWastage
@@ -199,6 +217,16 @@ function BillPanel({ customer, openCustomer, removeCustomer, cart, quotes, total
     const first = items[0]; const pricePart = (field: keyof PriceQuote['breakdown']) => items.reduce((value, item) => value + Number(quotes[item.id]?.breakdown[field] || 0), 0);
     return <article key={first.product_id}><button aria-label={`Remove ${first.sku || first.name}`} onClick={() => onRemoveGroup(first.product_id)}><Trash2 /></button><small>{first.sku || first.tag_number} · {first.purity}</small><h3>{first.name || first.sku || 'Gold jewellery'}</h3><div className="cart-quantity"><button aria-label="Decrease quantity" disabled={busy} onClick={() => items.length === 1 ? onRemoveGroup(first.product_id) : onRemove(items[items.length - 1].id)}><Minus /></button><b>{items.length}</b><button aria-label="Increase quantity" disabled={busy} onClick={() => onIncrement(first)}><Plus /></button></div><p>{items.length} physical piece{items.length === 1 ? '' : 's'} selected</p><small>{items.map(item => `${item.barcode}${item.huid ? ` / ${item.huid}` : ''}`).join(' · ')}</small><label className="wastage-input">Wastage <input key={first.wastage_percent} defaultValue={first.wastage_percent || '0'} inputMode="decimal" onBlur={event => onWastage(first, event.currentTarget.value)} /> %</label><dl><dt>Gross</dt><dd>{sum(items, 'gross_weight')} g</dd><dt>Net</dt><dd>{sum(items, 'net_weight')} g</dd><dt>Fine</dt><dd>{sum(items, 'fine_weight')} g</dd><dt>Gold value</dt><dd>{formatMoney(pricePart('metal_value'))}</dd><dt>Making</dt><dd>{formatMoney(pricePart('making_charge'))}</dd><dt>Wastage</dt><dd>{formatMoney(pricePart('wastage_value'))}</dd><dt>GST</dt><dd>{formatMoney(pricePart('tax_amount'))}</dd><dt>Line total</dt><dd>{formatMoney(pricePart('total'))}</dd></dl></article>;
   })}{!cart.length && <div className="cart-empty"><Gem /><p>No items in this bill</p></div>}</div><div className="bill-total"><p><span>Physical pieces</span><b>{cart.length}</b></p><p><span>Estimated total</span><b>{formatMoney(total)}</b></p><small>Each quantity unit is a distinct serialized jewellery item.</small><div><small>ESTIMATED GRAND TOTAL</small><strong>{formatMoney(total)}</strong></div><button className="estimate-button" disabled={!cart.length} onClick={onEstimate}><Eye /> View estimate</button><button disabled={!cart.length} onClick={onCheckout}><CreditCard /> Proceed to payment</button><nav><button disabled>Old gold</button><button disabled>Exchange</button><button onClick={onClear}>Clear</button></nav></div></aside>;
+}
+
+function PricingDrawer({ item, quote, busy, onClose, onApply }: { item: CartItem; quote?: PriceQuote; busy: boolean; onClose: () => void; onApply: (item: CartItem, values: Record<string, string>) => void }) {
+  const [wastage, setWastage] = useState(item.wastage_percent || '0');
+  const [making, setMaking] = useState(item.making_charge || '0');
+  const [stoneWeight, setStoneWeight] = useState(item.stone_weight || '0');
+  const [stoneCharge, setStoneCharge] = useState(item.stone_charge || '0');
+  const [discount, setDiscount] = useState(item.discount || '0');
+  const invalidStone = Number(stoneWeight) < 0 || Number(stoneWeight) >= Number(item.gross_weight);
+  return <div className="modal pricing-drawer"><div><button className="modal-x" onClick={onClose}><X /></button><small>EDIT ITEM PRICING · SERVER VALIDATED</small><h2>{item.name || item.sku || item.tag_number}</h2><p>Gross weight and gold rate are locked from inventory. Changes are saved as a negotiation revision.</p><div className="gold-facts"><span>Gross<b>{item.gross_weight} g</b></span><span>Net gold<b>{quote?.weight?.net_gold || item.net_weight} g</b></span><span>Fine gold<b>{quote?.weight?.fine_gold || item.fine_weight} g</b></span><span>Gold rate<b>{formatMoney(quote?.rate_per_gram)} / g</b></span></div><div className="assessment-grid"><label>Wastage %<input value={wastage} inputMode="decimal" onChange={e=>setWastage(e.target.value)} /></label><label>Making charges<input value={making} inputMode="decimal" onChange={e=>setMaking(e.target.value)} /></label><label>Stone weight (g)<input value={stoneWeight} inputMode="decimal" onChange={e=>setStoneWeight(e.target.value)} />{invalidStone&&<small className="field-error">Stone weight must be less than gross weight.</small>}</label><label>Stone value<input value={stoneCharge} inputMode="decimal" onChange={e=>setStoneCharge(e.target.value)} /></label><label>Discount<input value={discount} inputMode="decimal" onChange={e=>setDiscount(e.target.value)} /></label></div><div className="pay-total"><span>Current authoritative total</span><b>{formatMoney(quote?.breakdown.total)}</b></div><button disabled={busy || invalidStone} onClick={()=>onApply(item,{wastage_percent:wastage,making_charge:making,stone_weight:stoneWeight,stone_charge:stoneCharge,discount})}>{busy?'Recalculating…':'Apply negotiated pricing'}</button></div></div>;
 }
 
 function PaymentModal({ total, busy, method, setMethod, onClose, onConfirm }: { total: number; busy: boolean; method: string; setMethod: (value: string) => void; onClose: () => void; onConfirm: () => void }) {
