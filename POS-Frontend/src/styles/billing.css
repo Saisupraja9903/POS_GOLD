@@ -8,5 +8,14 @@
 .cart article button svg { width: 15px; height: 15px; }
 .modal select:focus { outline: 2px solid #c1a552; }
 .bill-total .estimate-button { margin: 0 0 8px; border: 1px solid #665a37; background: transparent; color: #ddc778; }
-.bill-total > nav { display:none; }
-.pricing-action{position:fixed;right:30px;bottom:24px;z-index:12;display:flex;gap:8px}.pricing-action button,.pricing-edit{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid #b9973d;background:#233f35;color:#fff;padding:10px 13px;font-size:11px;font-weight:800}.pricing-action button:disabled,.pricing-edit:disabled{opacity:.5}.pricing-drawer>div{max-width:560px}.pricing-drawer .assessment-grid input{width:100%;box-sizing:border-box;padding:9px;margin-top:4px}.field-error{display:block;color:#b42318;margin-top:4px}
+.bill-total .pricing-edit, .bill-total .payment-primary, .bill-total .confirm-negotiation { width: 100%; }
+.pricing-edit, .confirm-negotiation { display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 1px solid #89753a; border-radius: 5px; background: #fff; color: #40381f; padding: 10px 13px; font-size: 11px; font-weight: 800; }
+.bill-total .pricing-edit { margin-top: 8px; border-color: #b9973d; background: transparent; color: #b9973d; }
+.confirm-negotiation { margin-top: 8px; border-color: #233f35; background: #233f35; color: #fff; }
+.pricing-edit:disabled, .confirm-negotiation:disabled { cursor: not-allowed; opacity: .5; }
+.grand-total { margin-top: 14px; }
+.bill-total .payment-primary { margin-top: 10px; }
+.pricing-drawer > div { max-width: 560px; }
+.pricing-drawer .assessment-grid input { width: 100%; box-sizing: border-box; padding: 9px; margin-top: 4px; }
+.field-error { display: block; color: #b42318; margin-top: 4px; }
+@media (max-width: 520px) { .confirm-negotiation { margin-top: 8px; } }
