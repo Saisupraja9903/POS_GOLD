@@ -4,6 +4,7 @@ export const POS_ROLES = {
   branchManager: 'BRANCH_MANAGER',
   salesManager: 'SALES_MANAGER',
   salesPerson: 'SALES_PERSON',
+  cashier: 'CASHIER',
 } as const;
 
 export type PosRole = (typeof POS_ROLES)[keyof typeof POS_ROLES];
@@ -15,6 +16,7 @@ const ROLE_ALIASES: Record<string, PosRole> = {
   SALESMANAGER: POS_ROLES.salesManager,
   SALES_PERSON: POS_ROLES.salesPerson,
   SALESPERSON: POS_ROLES.salesPerson,
+  CASHIER: POS_ROLES.cashier,
 };
 
 export function roleOf(user: PosUser): PosRole | null {

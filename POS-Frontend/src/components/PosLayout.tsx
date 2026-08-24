@@ -6,10 +6,10 @@ import { hasPermission, hasRole, POS_ROLES, roleOf, type PosRole } from '../role
 import type { PosUser } from '../types';
 
 export const navigation = [
-  { label: 'Billing', path: '/billing', icon: ReceiptText, permission: 'billing.view', roles: [POS_ROLES.salesPerson] },
-  { label: 'Products', path: '/products', icon: PackageSearch, permission: 'products.view', roles: [POS_ROLES.branchManager, POS_ROLES.salesManager, POS_ROLES.salesPerson], group: 'Products' },
-  { label: 'Invoices', path: '/invoices', icon: ReceiptText, permission: 'invoices.view', roles: [POS_ROLES.branchManager, POS_ROLES.salesManager, POS_ROLES.salesPerson], group: 'Sales' },
-  { label: 'Returns', path: '/returns', icon: RotateCcw, permission: 'returns.view', roles: [POS_ROLES.branchManager, POS_ROLES.salesManager, POS_ROLES.salesPerson], group: 'Sales' },
+  { label: 'Billing', path: '/billing', icon: ReceiptText, permission: 'billing.view', roles: [POS_ROLES.salesPerson, POS_ROLES.cashier] },
+  { label: 'Products', path: '/products', icon: PackageSearch, permission: 'products.view', roles: [POS_ROLES.branchManager, POS_ROLES.salesManager, POS_ROLES.salesPerson, POS_ROLES.cashier], group: 'Products' },
+  { label: 'Invoices', path: '/invoices', icon: ReceiptText, permission: 'invoices.view', roles: [POS_ROLES.branchManager, POS_ROLES.salesManager, POS_ROLES.salesPerson, POS_ROLES.cashier], group: 'Sales' },
+  { label: 'Exchange', path: '/returns', icon: RotateCcw, permission: 'returns.view', roles: [POS_ROLES.branchManager, POS_ROLES.salesManager, POS_ROLES.salesPerson, POS_ROLES.cashier], group: 'Sales' },
   { label: 'Team', path: '/team', icon: Users, permission: 'staff.view', roles: [POS_ROLES.branchManager, POS_ROLES.salesManager], group: 'Management' },
   { label: 'Reports', path: '/reports', icon: ChartNoAxesCombined, permission: 'reports.view', roles: [POS_ROLES.branchManager, POS_ROLES.salesManager, POS_ROLES.salesPerson], group: 'Management' },
   { label: 'Return Reports', path: '/return-reports', icon: FileChartColumn, permission: 'returns.view', roles: [POS_ROLES.salesManager] },

@@ -44,8 +44,8 @@ export function App() {
     <PosLayout user={user}>
       <Routes>
         <Route path="/dashboard" element={<Navigate to={homeFor(user)} replace />} />
-        <Route path="/billing" element={roleOf(user) !== POS_ROLES.salesPerson ? <Navigate to={homeFor(user)} replace /> : <Permitted user={user} permission="billing.view" roles={[POS_ROLES.salesPerson]}><BillingPage user={user} /></Permitted>} />
-        <Route path="/returns" element={<Permitted user={user} permission="returns.view" roles={ALL_POS_ROLES}><ReturnsPage canCreate={roleOf(user) === POS_ROLES.salesPerson} /></Permitted>} />
+        <Route path="/billing" element={!([POS_ROLES.salesPerson, POS_ROLES.cashier] as const).includes(roleOf(user) as any) ? <Navigate to={homeFor(user)} replace /> : <Permitted user={user} permission="billing.view" roles={[POS_ROLES.salesPerson, POS_ROLES.cashier]}><BillingPage user={user} /></Permitted>} />
+        <Route path="/returns" element={<Permitted user={user} permission="returns.view" roles={ALL_POS_ROLES}><ReturnsPage canCreate={[POS_ROLES.salesPerson, POS_ROLES.cashier].includes(roleOf(user) as any)} /></Permitted>} />
         <Route path="/products" element={<Permitted user={user} permission="products.view" roles={ALL_POS_ROLES}>{roleOf(user) === POS_ROLES.branchManager ? <BranchProductsPage /> : roleOf(user) === POS_ROLES.salesManager ? <div className="sales-manager-products-font"><ProductsPage canAddToBill={false} /></div> : <ProductsPage canAddToBill />}</Permitted>} />
         <Route path="/invoices" element={<Permitted user={user} permission="invoices.view" roles={ALL_POS_ROLES}><InvoicesPage /></Permitted>} />
         <Route path="/invoices/:id" element={<Permitted user={user} permission="invoices.view" roles={ALL_POS_ROLES}><InvoiceDetailPage /></Permitted>} />
@@ -59,7 +59,7 @@ export function App() {
   );
 }
 
-const ALL_POS_ROLES = [POS_ROLES.branchManager, POS_ROLES.salesManager, POS_ROLES.salesPerson] as const;
+const ALL_POS_ROLES = [POS_ROLES.branchManager, POS_ROLES.salesManager, POS_ROLES.salesPerson, POS_ROLES.cashier] as const;
 
 function Permitted({ user, permission, roles, children }: { user: PosUser; permission: string; roles: readonly PosRole[]; children: ReactNode }) {
   if (hasRole(user, roles) && hasPermission(user, permission)) return <>{children}</>;
