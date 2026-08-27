@@ -10,6 +10,7 @@ export const navigation = [
   { label: 'Products', path: '/products', icon: PackageSearch, permission: 'products.view', roles: [POS_ROLES.branchManager, POS_ROLES.salesManager, POS_ROLES.salesPerson, POS_ROLES.cashier], group: 'Products' },
   { label: 'Invoices', path: '/invoices', icon: ReceiptText, permission: 'invoices.view', roles: [POS_ROLES.branchManager, POS_ROLES.salesManager, POS_ROLES.salesPerson, POS_ROLES.cashier], group: 'Sales' },
   { label: 'Gold Exchange', path: '/exchange', icon: RotateCcw, permission: 'exchange.view', roles: [POS_ROLES.branchManager, POS_ROLES.salesManager, POS_ROLES.salesPerson, POS_ROLES.cashier], group: 'Sales' },
+  { label: 'Old Gold Buyback', path: '/old-gold-buyback', icon: RotateCcw, permission: 'old_gold.view', roles: [POS_ROLES.branchManager, POS_ROLES.salesManager, POS_ROLES.salesPerson, POS_ROLES.cashier], group: 'Sales' },
   { label: 'Returns', path: '/returns', icon: RotateCcw, permission: 'returns.view', roles: [POS_ROLES.branchManager, POS_ROLES.salesManager, POS_ROLES.salesPerson, POS_ROLES.cashier], group: 'Sales' },
   { label: 'Team', path: '/team', icon: Users, permission: 'staff.view', roles: [POS_ROLES.branchManager, POS_ROLES.salesManager], group: 'Management' },
   { label: 'Reports', path: '/reports', icon: ChartNoAxesCombined, permission: 'reports.view', roles: [POS_ROLES.branchManager, POS_ROLES.salesManager, POS_ROLES.salesPerson], group: 'Management' },

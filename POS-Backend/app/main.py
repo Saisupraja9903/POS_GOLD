@@ -39,6 +39,7 @@ BRANCH_MANAGER_BLOCKED = (
     ("POST", "pos/cart"), ("PATCH", "pos/cart"), ("DELETE", "pos/cart"),
     ("POST", "customers"), ("POST", "sales"), ("POST", "pos/returns"),
     ("POST", "pos/items/lookup"), ("POST", "pos/products"),
+    ("POST", "pos/old-gold-buybacks"),
 )
 
 def branch_manager_operation_blocked(method: str, path: str) -> bool:
