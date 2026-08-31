@@ -24,6 +24,7 @@ class StaffCreate(BaseModel):
     email: EmailStr
     password: str = Field(min_length=8, max_length=128)
     role_code: str
+    manager_id: uuid.UUID | None = None
 
 class StaffUpdate(BaseModel):
     full_name: str | None = Field(default=None, min_length=1, max_length=255)
@@ -40,6 +41,7 @@ BRANCH_MANAGER_BLOCKED = (
     ("POST", "customers"), ("POST", "sales"), ("POST", "pos/returns"),
     ("POST", "pos/items/lookup"), ("POST", "pos/products"),
     ("POST", "pos/old-gold-buybacks"),
+    ("POST", "pos/exchanges"),
 )
 
 def branch_manager_operation_blocked(method: str, path: str) -> bool:
@@ -47,6 +49,11 @@ def branch_manager_operation_blocked(method: str, path: str) -> bool:
     return any(method.upper() == blocked_method and
                (clean_path == prefix or clean_path.startswith(f"{prefix}/"))
                for blocked_method, prefix in BRANCH_MANAGER_BLOCKED)
+
+def supervisory_operation_blocked(role: str | None, method: str, path: str) -> bool:
+    """Managers are supervisory; transaction mutations remain counter-only."""
+    clean_path = path.strip("/")
+    return role in {"BRANCH_MANAGER", "SALES_MANAGER"} and branch_manager_operation_blocked(method, clean_path)
 
 async def current_pos_role(client: httpx.AsyncClient, headers: dict[str, str]) -> str | None:
     if "authorization" not in headers:
@@ -117,10 +124,25 @@ async def create_branch_staff(body: StaffCreate, request: Request):
         role_id = (await connection.execute(text("SELECT id FROM roles WHERE code=:role"), {"role": role_code})).scalar_one_or_none()
         if not role_id:
             return JSONResponse(status_code=422, content={"error": {"code": "ROLE_NOT_FOUND", "message": "Selected role is unavailable."}})
+        manager_id = user["id"] if is_sales_manager else None
+        if role_code == "SALES_PERSON" and not is_sales_manager:
+            managers = (await connection.execute(text("""SELECT u.id FROM users u JOIN roles r ON r.id=u.role_id
+                WHERE u.branch_id=CAST(:branch_id AS uuid) AND r.code='SALES_MANAGER' AND u.is_active=true
+                ORDER BY u.full_name,u.id"""), {"branch_id": user["branch_id"]})).scalars().all()
+            if not managers:
+                return JSONResponse(status_code=422, content={"error": {"code": "SALES_MANAGER_REQUIRED", "message": "Create an active Sales Manager in this branch before adding a Sales Person."}})
+            if body.manager_id:
+                if body.manager_id not in managers:
+                    return JSONResponse(status_code=403, content={"error": {"code": "INVALID_REPORTING_MANAGER", "message": "Select an active Sales Manager from your branch."}})
+                manager_id = body.manager_id
+            elif len(managers) == 1:
+                manager_id = managers[0]
+            else:
+                return JSONResponse(status_code=422, content={"error": {"code": "REPORTING_MANAGER_REQUIRED", "message": "Select the Sales Manager responsible for this Sales Person."}})
         row = (await connection.execute(text("""INSERT INTO users (id,email,employee_id,phone,full_name,hashed_password,is_active,role_id,branch_id,manager_id,created_at,updated_at)
             VALUES (:id,lower(:email),upper(:employee_id),:phone,:full_name,:password,true,:role_id,CAST(:branch_id AS uuid),CAST(:manager_id AS uuid),now(),now())
-            RETURNING id"""), {"id": uuid.uuid4(), "email": str(body.email), "employee_id": body.employee_id, "phone": body.phone, "full_name": body.full_name.strip(), "password": password_hasher.hash(body.password), "role_id": role_id, "branch_id": user["branch_id"], "manager_id": user["id"] if is_sales_manager else None})).scalar_one()
-    return {"id": str(row), "message": "Staff member created."}
+            RETURNING id"""), {"id": uuid.uuid4(), "email": str(body.email), "employee_id": body.employee_id, "phone": body.phone, "full_name": body.full_name.strip(), "password": password_hasher.hash(body.password), "role_id": role_id, "branch_id": user["branch_id"], "manager_id": manager_id})).scalar_one()
+    return {"id": str(row), "manager_id": str(manager_id) if manager_id else None, "message": "Staff member created."}
 
 @app.patch("/api/v1/pos/team/{staff_id}")
 async def update_branch_staff(staff_id: uuid.UUID, body: StaffUpdate, request: Request):
@@ -229,7 +251,7 @@ async def gateway(path: str, request: Request):
     async with httpx.AsyncClient(timeout=30) as client:
         if branch_manager_operation_blocked(request.method, path):
             role = await current_pos_role(client, headers)
-            if role in {"BRANCH_MANAGER", "SALES_MANAGER"}:
+            if supervisory_operation_blocked(role, request.method, path):
                 return JSONResponse(status_code=403, content={"error": {
                     "code": "POS_SUPERVISORY_ROLE",
                     "message": "Managers can monitor branch activity but cannot perform counter operations.",

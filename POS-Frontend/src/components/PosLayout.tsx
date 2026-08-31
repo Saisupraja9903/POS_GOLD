@@ -14,7 +14,7 @@ export const navigation = [
   { label: 'Returns', path: '/returns', icon: RotateCcw, permission: 'returns.view', roles: [POS_ROLES.branchManager, POS_ROLES.salesManager, POS_ROLES.salesPerson, POS_ROLES.cashier], group: 'Sales' },
   { label: 'Team', path: '/team', icon: Users, permission: 'staff.view', roles: [POS_ROLES.branchManager, POS_ROLES.salesManager], group: 'Management' },
   { label: 'Reports', path: '/reports', icon: ChartNoAxesCombined, permission: 'reports.view', roles: [POS_ROLES.branchManager, POS_ROLES.salesManager, POS_ROLES.salesPerson], group: 'Management' },
-  { label: 'Return Reports', path: '/return-reports', icon: FileChartColumn, permission: 'returns.view', roles: [POS_ROLES.salesManager] },
+  { label: 'Return Reports', path: '/return-reports', icon: FileChartColumn, permission: 'returns.view', roles: [POS_ROLES.branchManager, POS_ROLES.salesManager], group: 'Management' },
   { label: 'Settings', path: '/settings', icon: Settings, permission: 'settings.view', roles: [POS_ROLES.branchManager, POS_ROLES.salesManager, POS_ROLES.salesPerson], group: 'Management' },
 ] satisfies ReadonlyArray<{ label: string; path: string; icon: typeof ReceiptText; permission: string; roles: readonly PosRole[]; group?: string }>;
 

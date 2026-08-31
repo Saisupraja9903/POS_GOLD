@@ -14,6 +14,7 @@ import { ReportsPage } from '../pages/ReportsPage';
 import { ReturnsPage } from '../pages/ReturnsPage';
 import { SettingsPage } from '../pages/SettingsPage';
 import { GoldExchangePage } from '../pages/GoldExchangePage';
+import { GoldExchangeReportPage } from '../pages/GoldExchangeReportPage';
 import { OldGoldBuybackPage } from '../pages/OldGoldBuybackPage';
 import { hasPermission, hasRole, homeFor, POS_ROLES, roleOf, type PosRole } from '../roleAccess';
 import type { PosUser } from '../types';
@@ -48,8 +49,8 @@ export function App() {
         <Route path="/dashboard" element={<Navigate to={homeFor(user)} replace />} />
         <Route path="/billing" element={!([POS_ROLES.salesPerson, POS_ROLES.cashier] as const).includes(roleOf(user) as any) ? <Navigate to={homeFor(user)} replace /> : <Permitted user={user} permission="billing.view" roles={[POS_ROLES.salesPerson, POS_ROLES.cashier]}><BillingPage user={user} /></Permitted>} />
         <Route path="/returns" element={<Permitted user={user} permission="returns.view" roles={ALL_POS_ROLES}><ReturnsPage canCreate={[POS_ROLES.salesPerson, POS_ROLES.cashier].includes(roleOf(user) as any)} /></Permitted>} />
-        <Route path="/exchange" element={<Permitted user={user} permission="exchange.view" roles={ALL_POS_ROLES}><GoldExchangePage /></Permitted>} />
-        <Route path="/old-gold-buyback" element={<Permitted user={user} permission="old_gold.view" roles={ALL_POS_ROLES}><OldGoldBuybackPage /></Permitted>} />
+        <Route path="/exchange" element={<Permitted user={user} permission="exchange.view" roles={[POS_ROLES.salesManager, POS_ROLES.salesPerson, POS_ROLES.cashier]}>{roleOf(user)===POS_ROLES.salesManager?<GoldExchangeReportPage/>:<GoldExchangePage/>}</Permitted>} />
+        <Route path="/old-gold-buyback" element={<Permitted user={user} permission="old_gold.view" roles={ALL_POS_ROLES}><OldGoldBuybackPage canMutate={[POS_ROLES.salesPerson, POS_ROLES.cashier].includes(roleOf(user) as any)} /></Permitted>} />
         <Route path="/products" element={<Permitted user={user} permission="products.view" roles={ALL_POS_ROLES}>{roleOf(user) === POS_ROLES.branchManager ? <BranchProductsPage /> : roleOf(user) === POS_ROLES.salesManager ? <div className="sales-manager-products-font"><ProductsPage canAddToBill={false} /></div> : <ProductsPage canAddToBill />}</Permitted>} />
         <Route path="/invoices" element={<Permitted user={user} permission="invoices.view" roles={ALL_POS_ROLES}><InvoicesPage /></Permitted>} />
         <Route path="/invoices/:id" element={<Permitted user={user} permission="invoices.view" roles={ALL_POS_ROLES}><InvoiceDetailPage /></Permitted>} />
